@@ -5,6 +5,11 @@ import "fmt"
 const (
 	OP_CONSTANT uint8 = iota
 	OP_CONSTANT_LONG
+	OP_ADD
+	OP_SUBTRACT
+	OP_MULTIPLY
+	OP_DIVIDE
+	OP_NEGATE
 	OP_RETURN
 )
 
@@ -73,7 +78,7 @@ func (c *Chunk) WriteConstant(value Value, line uint16) {
 
 func (c *Chunk) Write(byte uint8, line uint16) {
 	c.code = append(c.code, byte)
-	if last := len(c.lineInfo)-1; len(c.lineInfo) == 0 || c.lineInfo[last].line != line {
+	if last := len(c.lineInfo) - 1; len(c.lineInfo) == 0 || c.lineInfo[last].line != line {
 		c.lineInfo = append(c.lineInfo, LineInfo{line: line, count: 1})
 	} else {
 		c.lineInfo[last].count++

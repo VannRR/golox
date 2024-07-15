@@ -37,10 +37,9 @@ func (vm *VM) pop() Value {
 	return vm.stack[vm.stackTop]
 }
 
-func (vm *VM) Interpret(c *Chunk) InterpretResult {
-	vm.chunk = c
-	vm.ip = 0
-	return vm.run()
+func (vm *VM) Interpret(source *[]byte) InterpretResult {
+    Compile(source)
+    return INTERPRET_OK
 }
 
 func (vm *VM) run() InterpretResult {
@@ -59,10 +58,27 @@ func (vm *VM) run() InterpretResult {
 		case OP_CONSTANT:
 			constant := vm.readConstant()
 			vm.push(constant)
+		case OP_CONSTANT_LONG:
+			constant := vm.readConstant()
+			vm.push(constant)
+		case OP_ADD:
+			vm.binaryOP(OP_ADD)
+		case OP_SUBTRACT:
+			vm.binaryOP(OP_SUBTRACT)
+		case OP_MULTIPLY:
+			vm.binaryOP(OP_MULTIPLY)
+		case OP_DIVIDE:
+			vm.binaryOP(OP_DIVIDE)
+		case OP_NEGATE:
+			value := &vm.stack[vm.stackTop-1]
+			*value = -*value
 		case OP_RETURN:
 			vm.pop().Print()
 			fmt.Printf("\n")
 			return INTERPRET_OK
+		default:
+			err := fmt.Sprintf("Unknown instruction %v", instruction)
+			panic(err)
 		}
 	}
 }
@@ -74,6 +90,24 @@ func (vm *VM) readByte() uint8 {
 
 func (vm *VM) readConstant() Value {
 	return vm.chunk.constants[vm.readByte()]
+}
+
+func (vm *VM) binaryOP(operator uint8) {
+	b := vm.pop()
+	a := &vm.stack[vm.stackTop-1]
+	switch operator {
+	case OP_ADD:
+		*a = *a + b
+	case OP_SUBTRACT:
+		*a = *a - b
+	case OP_MULTIPLY:
+		*a = *a * b
+	case OP_DIVIDE:
+		*a = *a / b
+	default:
+		err := fmt.Sprintf("Invalid binary operator %v", operator)
+		panic(err)
+	}
 }
 
 func (vm *VM) resetStack() {

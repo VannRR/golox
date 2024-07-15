@@ -4,18 +4,28 @@ import "fmt"
 
 func disassembleInstruction(c Chunk, offset int) int {
 	fmt.Printf("%04d ", offset)
-	
+
 	if l := c.GetLine(offset); offset > 0 && l == c.GetLine(offset-1) {
 		fmt.Printf("   | ")
 	} else {
 		fmt.Printf("%4d ", l)
 	}
-	
+
 	switch op := c.code[offset]; op {
 	case OP_CONSTANT:
 		return constantInstruction("OP_CONSTANT", c, offset)
 	case OP_CONSTANT_LONG:
 		return constantLongInstruction("OP_CONSTANT_LONG", c, offset)
+	case OP_ADD:
+		return simpleInstruction("OP_ADD", offset)
+	case OP_SUBTRACT:
+		return simpleInstruction("OP_SUBTRACT", offset)
+	case OP_MULTIPLY:
+		return simpleInstruction("OP_MULTIPLY", offset)
+	case OP_DIVIDE:
+		return simpleInstruction("OP_DIVIDE", offset)
+	case OP_NEGATE:
+		return simpleInstruction("OP_NEGATE", offset)
 	case OP_RETURN:
 		return simpleInstruction("OP_RETURN", offset)
 	default:
