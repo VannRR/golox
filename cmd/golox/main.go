@@ -3,14 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"golox/internal/vm"
 	"io"
 	"os"
 )
 
-const DEBUG_TRACE_EXECUTION bool = true
-
 func main() {
-	vm := NewVM()
+	vm := vm.NewVM()
 
 	if argc := len(os.Args); argc == 1 {
 		repl(vm)
@@ -24,26 +23,26 @@ func main() {
 	vm.Free()
 }
 
-func repl(vm *VM) {
+func repl(v *vm.VM) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf("> ")
 
 		if line, _ := reader.ReadBytes('\n'); line[0] != '\n' {
-			vm.Interpret(&line)
+			v.Interpret(&line)
 		}
 	}
 }
 
-func runFile(vm *VM, path string) {
+func runFile(v *vm.VM, path string) {
 	source := readFile(path)
-	result := vm.Interpret(source)
+	result := v.Interpret(source)
 	*source = nil
 
-	if result == INTERPRET_COMPILE_ERROR {
+	if result == vm.INTERPRET_COMPILE_ERROR {
 		os.Exit(65)
 	}
-	if result == INTERPRET_RUNTIME_ERROR {
+	if result == vm.INTERPRET_RUNTIME_ERROR {
 		os.Exit(70)
 	}
 }

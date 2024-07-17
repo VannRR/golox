@@ -1,6 +1,9 @@
-package main
+package chunk
 
-import "fmt"
+import (
+	"fmt"
+	"golox/internal/value"
+)
 
 const (
 	OP_CONSTANT byte = iota
@@ -22,25 +25,25 @@ type LineInfo struct {
 }
 
 type Chunk struct {
-	code      []byte
+	Code      []byte
 	lineInfo  []LineInfo
-	constants ValueArray
+	Constants value.ValueArray
 }
 
 func NewChunk() *Chunk {
 	return &Chunk{
-		code:      make([]byte, 0),
+		Code:      make([]byte, 0),
 		lineInfo:  make([]LineInfo, 0),
-		constants: NewValueArray(),
+		Constants: value.NewValueArray(),
 	}
 }
 
-func (c Chunk) Count() int {
-	return len(c.code)
+func (c *Chunk) Count() int {
+	return len(c.Code)
 }
 
-func (c Chunk) GetLine(codeIndex int) uint16 {
-	if codeIndex < 0 || codeIndex >= len(c.code) {
+func (c *Chunk) GetLine(codeIndex int) uint16 {
+	if codeIndex < 0 || codeIndex >= len(c.Code) {
 		return 0
 	}
 
@@ -56,12 +59,12 @@ func (c Chunk) GetLine(codeIndex int) uint16 {
 }
 
 func (c *Chunk) Free() {
-	c.code = c.code[:0]
+	c.Code = c.Code[:0]
 	c.lineInfo = c.lineInfo[:0]
-	c.constants.Free()
+	c.Constants.Free()
 }
 
-func (c *Chunk) WriteConstant(value Value, line uint16) {
+func (c *Chunk) WriteConstant(value value.Value, line uint16) {
 	if i := c.AddConstant(value); i <= maxConstantIndex {
 		c.Write(OP_CONSTANT, line)
 		c.Write(byte(i), line)
@@ -77,7 +80,7 @@ func (c *Chunk) WriteConstant(value Value, line uint16) {
 }
 
 func (c *Chunk) Write(byte byte, line uint16) {
-	c.code = append(c.code, byte)
+	c.Code = append(c.Code, byte)
 	if last := len(c.lineInfo) - 1; len(c.lineInfo) == 0 || c.lineInfo[last].line != line {
 		c.lineInfo = append(c.lineInfo, LineInfo{line: line, count: 1})
 	} else {
@@ -85,15 +88,7 @@ func (c *Chunk) Write(byte byte, line uint16) {
 	}
 }
 
-func (c *Chunk) AddConstant(value Value) int {
-	c.constants.Write(value)
-	return c.constants.Count() - 1
-}
-
-func (c Chunk) Disassemble(name string) {
-	fmt.Printf("== %s ==\n", name)
-
-	for offset := 0; offset < c.Count(); {
-		offset = disassembleInstruction(c, offset)
-	}
+func (c *Chunk) AddConstant(value value.Value) int {
+	c.Constants.Write(value)
+	return c.Constants.Count() - 1
 }

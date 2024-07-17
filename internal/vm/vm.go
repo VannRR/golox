@@ -1,8 +1,17 @@
-package main
+package vm
 
-import "fmt"
+import (
+	"fmt"
+	"golox/internal/chunk"
+	"golox/internal/compiler"
+	"golox/internal/debug"
+	"golox/internal/opcode"
+	"golox/internal/value"
+)
 
 type InterpretResult = uint8
+
+const DEBUG_TRACE_EXECUTION bool = true
 
 const (
 	INTERPRET_OK InterpretResult = iota
@@ -13,9 +22,9 @@ const (
 const STACK_MAX int = 256
 
 type VM struct {
-	chunk    *Chunk
+	chunk    *chunk.Chunk
 	ip       int
-	stack    [STACK_MAX]Value
+	stack    [STACK_MAX]value.Value
 	stackTop int
 }
 
@@ -27,18 +36,18 @@ func (vm *VM) Free() {
 	// Implement cleanup logic
 }
 
-func (vm *VM) push(value Value) {
+func (vm *VM) push(value value.Value) {
 	vm.stack[vm.stackTop] = value
 	vm.stackTop++
 }
 
-func (vm *VM) pop() Value {
+func (vm *VM) pop() value.Value {
 	vm.stackTop--
 	return vm.stack[vm.stackTop]
 }
 
 func (vm *VM) Interpret(source *[]byte) InterpretResult {
-	Compile(source)
+	compiler.Compile(source)
 	return INTERPRET_OK
 }
 
@@ -52,27 +61,27 @@ func (vm *VM) run() InterpretResult {
 				fmt.Printf(" ]")
 			}
 			fmt.Printf("\n")
-			disassembleInstruction(*vm.chunk, int(vm.chunk.code[vm.ip]))
+			debug.DisassembleInstruction(*vm.chunk, int(vm.chunk.Code[vm.ip]))
 		}
 		switch instruction := vm.readByte(); instruction {
-		case OP_CONSTANT:
+		case opcode.Constant:
 			constant := vm.readConstant()
 			vm.push(constant)
-		case OP_CONSTANT_LONG:
+		case opcode.ConstantLong:
 			constant := vm.readConstant()
 			vm.push(constant)
-		case OP_ADD:
-			vm.binaryOP(OP_ADD)
-		case OP_SUBTRACT:
-			vm.binaryOP(OP_SUBTRACT)
-		case OP_MULTIPLY:
-			vm.binaryOP(OP_MULTIPLY)
-		case OP_DIVIDE:
-			vm.binaryOP(OP_DIVIDE)
-		case OP_NEGATE:
+		case opcode.Add:
+			vm.binaryOP(opcode.Add)
+		case opcode.Subtract:
+			vm.binaryOP(opcode.Subtract)
+		case opcode.Multiply:
+			vm.binaryOP(opcode.Multiply)
+		case opcode.Divide:
+			vm.binaryOP(opcode.Divide)
+		case opcode.Negate:
 			value := &vm.stack[vm.stackTop-1]
 			*value = -*value
-		case OP_RETURN:
+		case opcode.Return:
 			vm.pop().Print()
 			fmt.Printf("\n")
 			return INTERPRET_OK
@@ -85,24 +94,24 @@ func (vm *VM) run() InterpretResult {
 
 func (vm *VM) readByte() byte {
 	defer func() { vm.ip++ }()
-	return vm.chunk.code[vm.ip]
+	return vm.chunk.Code[vm.ip]
 }
 
-func (vm *VM) readConstant() Value {
-	return vm.chunk.constants[vm.readByte()]
+func (vm *VM) readConstant() value.Value {
+	return vm.chunk.Constants[vm.readByte()]
 }
 
 func (vm *VM) binaryOP(operator byte) {
 	b := vm.pop()
 	a := &vm.stack[vm.stackTop-1]
 	switch operator {
-	case OP_ADD:
+	case opcode.Add:
 		*a = *a + b
-	case OP_SUBTRACT:
+	case opcode.Subtract:
 		*a = *a - b
-	case OP_MULTIPLY:
+	case opcode.Multiply:
 		*a = *a * b
-	case OP_DIVIDE:
+	case opcode.Divide:
 		*a = *a / b
 	default:
 		err := fmt.Sprintf("Invalid binary operator %v", operator)

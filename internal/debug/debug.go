@@ -1,8 +1,11 @@
-package main
+package debug
 
-import "fmt"
+import (
+	"fmt"
+	"golox/internal/chunk"
+)
 
-func disassembleInstruction(c Chunk, offset int) int {
+func DisassembleInstruction(c chunk.Chunk, offset int) int {
 	fmt.Printf("%04d ", offset)
 
 	if l := c.GetLine(offset); offset > 0 && l == c.GetLine(offset-1) {
@@ -11,22 +14,22 @@ func disassembleInstruction(c Chunk, offset int) int {
 		fmt.Printf("%4d ", l)
 	}
 
-	switch op := c.code[offset]; op {
-	case OP_CONSTANT:
+	switch op := c.Code[offset]; op {
+	case chunk.OP_CONSTANT:
 		return constantInstruction("OP_CONSTANT", c, offset)
-	case OP_CONSTANT_LONG:
+	case chunk.OP_CONSTANT_LONG:
 		return constantLongInstruction("OP_CONSTANT_LONG", c, offset)
-	case OP_ADD:
+	case chunk.OP_ADD:
 		return simpleInstruction("OP_ADD", offset)
-	case OP_SUBTRACT:
+	case chunk.OP_SUBTRACT:
 		return simpleInstruction("OP_SUBTRACT", offset)
-	case OP_MULTIPLY:
+	case chunk.OP_MULTIPLY:
 		return simpleInstruction("OP_MULTIPLY", offset)
-	case OP_DIVIDE:
+	case chunk.OP_DIVIDE:
 		return simpleInstruction("OP_DIVIDE", offset)
-	case OP_NEGATE:
+	case chunk.OP_NEGATE:
 		return simpleInstruction("OP_NEGATE", offset)
-	case OP_RETURN:
+	case chunk.OP_RETURN:
 		return simpleInstruction("OP_RETURN", offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", op)
@@ -34,20 +37,20 @@ func disassembleInstruction(c Chunk, offset int) int {
 	}
 }
 
-func constantInstruction(name string, c Chunk, offset int) int {
-	constantIndex := c.code[offset+1]
+func constantInstruction(name string, c chunk.Chunk, offset int) int {
+	constantIndex := c.Code[offset+1]
 	fmt.Printf("%-16s %4d '", name, constantIndex)
-	c.constants[constantIndex].Print()
+	c.Constants[constantIndex].Print()
 	fmt.Println("'")
 	return offset + 2
 }
 
-func constantLongInstruction(name string, c Chunk, offset int) int {
-	constantIndex := uint32(c.code[offset+1]) << 16
-	constantIndex += uint32(c.code[offset+2]) << 8
-	constantIndex += uint32(c.code[offset+3])
+func constantLongInstruction(name string, c chunk.Chunk, offset int) int {
+	constantIndex := uint32(c.Code[offset+1]) << 16
+	constantIndex += uint32(c.Code[offset+2]) << 8
+	constantIndex += uint32(c.Code[offset+3])
 	fmt.Printf("%-16s %4d '", name, constantIndex)
-	c.constants[constantIndex].Print()
+	c.Constants[constantIndex].Print()
 	fmt.Println("'")
 	return offset + 4
 }
