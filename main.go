@@ -34,9 +34,11 @@ func repl(vm *VM) {
 		}
 	}
 }
+
 func runFile(vm *VM, path string) {
 	source := readFile(path)
 	result := vm.Interpret(source)
+	*source = nil
 
 	if result == INTERPRET_COMPILE_ERROR {
 		os.Exit(65)

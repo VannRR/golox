@@ -38,8 +38,8 @@ func (vm *VM) pop() Value {
 }
 
 func (vm *VM) Interpret(source *[]byte) InterpretResult {
-    Compile(source)
-    return INTERPRET_OK
+	Compile(source)
+	return INTERPRET_OK
 }
 
 func (vm *VM) run() InterpretResult {
@@ -83,7 +83,7 @@ func (vm *VM) run() InterpretResult {
 	}
 }
 
-func (vm *VM) readByte() uint8 {
+func (vm *VM) readByte() byte {
 	defer func() { vm.ip++ }()
 	return vm.chunk.code[vm.ip]
 }
@@ -92,7 +92,7 @@ func (vm *VM) readConstant() Value {
 	return vm.chunk.constants[vm.readByte()]
 }
 
-func (vm *VM) binaryOP(operator uint8) {
+func (vm *VM) binaryOP(operator byte) {
 	b := vm.pop()
 	a := &vm.stack[vm.stackTop-1]
 	switch operator {

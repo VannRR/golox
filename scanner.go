@@ -75,6 +75,10 @@ func NewScanner(source *[]byte) *Scanner {
 }
 
 func (s *Scanner) ScanToken() Token {
+	token := s.skipWhitespace()
+	if token.tokenType == TOKEN_ERROR {
+		return token
+	}
 	s.start = s.current
 
 	if s.isAtEnd() {
@@ -114,6 +118,8 @@ func (s *Scanner) ScanToken() Token {
 		return s.makeMatchedToken('=', TOKEN_LESS_EQUAL, TOKEN_LESS)
 	case '>':
 		return s.makeMatchedToken('=', TOKEN_GREATER_EQUAL, TOKEN_GREATER)
+	case '"':
+		return s.string()
 	}
 
 	err := fmt.Sprintf("Unrecognized character, %v / \"%s\"", c, string(c))
@@ -127,6 +133,20 @@ func (s *Scanner) isAtEnd() bool {
 func (s *Scanner) advance() byte {
 	s.current++
 	return s.source[s.current-1]
+}
+
+func (s *Scanner) peek() byte {
+	if s.isAtEnd() {
+		return 0
+	}
+	return s.source[s.current]
+}
+
+func (s *Scanner) peekNext() byte {
+	if s.current+1 >= len(s.source) {
+		return 0
+	}
+	return s.source[s.current+1]
 }
 
 func (s *Scanner) match(expected byte) bool {
@@ -163,4 +183,70 @@ func (s *Scanner) errorToken(message string) Token {
 		lexeme:    []byte(message),
 		line:      s.line,
 	}
+}
+
+func (s *Scanner) skipWhitespace() Token {
+	for {
+		switch c := s.peek(); c {
+		case ' ', '\r', '\t':
+			s.current++
+		case '\n':
+			s.line++
+			s.current++
+		case '/':
+			switch nc := s.peekNext(); nc {
+			case '/':
+				for s.peek() != '\n' && !s.isAtEnd() {
+					s.current++
+				}
+			case '*':
+				s.current += 2
+                token := s.skipBlockComment()
+                if token.tokenType == TOKEN_ERROR {
+                    return token
+                }
+                return s.skipWhitespace()
+			default:
+				return Token{}
+			}
+		default:
+			return Token{}
+		}
+	}
+}
+
+func (s *Scanner) skipBlockComment() Token {
+	for !s.isAtEnd() {
+		if s.peek() == '*' && s.peekNext() == '/' {
+			s.current += 2
+			return Token{}
+		} else if s.peek() == '/' && s.peekNext() == '*' {
+			s.current += 2
+			s.skipBlockComment()
+		} else {
+			s.current++
+		}
+	}
+
+	if s.isAtEnd() {
+		return s.errorToken("Unterminated block comment.")
+	}
+
+	return Token{}
+}
+
+func (s *Scanner) string() Token {
+	for s.peek() != '"' && !s.isAtEnd() {
+		if s.peek() == '\n' {
+			s.line++
+		}
+		s.current++
+	}
+
+	if s.isAtEnd() {
+		return s.errorToken("Unterminated string.")
+	}
+
+	s.current++
+	return s.makeToken(TOKEN_STRING)
 }

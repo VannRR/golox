@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 const (
-	OP_CONSTANT uint8 = iota
+	OP_CONSTANT byte = iota
 	OP_CONSTANT_LONG
 	OP_ADD
 	OP_SUBTRACT
@@ -22,14 +22,14 @@ type LineInfo struct {
 }
 
 type Chunk struct {
-	code      []uint8
+	code      []byte
 	lineInfo  []LineInfo
 	constants ValueArray
 }
 
 func NewChunk() *Chunk {
 	return &Chunk{
-		code:      make([]uint8, 0),
+		code:      make([]byte, 0),
 		lineInfo:  make([]LineInfo, 0),
 		constants: NewValueArray(),
 	}
@@ -64,19 +64,19 @@ func (c *Chunk) Free() {
 func (c *Chunk) WriteConstant(value Value, line uint16) {
 	if i := c.AddConstant(value); i <= maxConstantIndex {
 		c.Write(OP_CONSTANT, line)
-		c.Write(uint8(i), line)
+		c.Write(byte(i), line)
 	} else if i <= maxConstantLongIndex {
 		c.Write(OP_CONSTANT_LONG, line)
-		c.Write(uint8(i>>16), line)
-		c.Write(uint8(i>>8), line)
-		c.Write(uint8(i), line)
+		c.Write(byte(i>>16), line)
+		c.Write(byte(i>>8), line)
+		c.Write(byte(i), line)
 	} else {
 		errMsg := fmt.Sprintf("Too many constants (%d), must be less than 16,777,216", i)
 		panic(errMsg)
 	}
 }
 
-func (c *Chunk) Write(byte uint8, line uint16) {
+func (c *Chunk) Write(byte byte, line uint16) {
 	c.code = append(c.code, byte)
 	if last := len(c.lineInfo) - 1; len(c.lineInfo) == 0 || c.lineInfo[last].line != line {
 		c.lineInfo = append(c.lineInfo, LineInfo{line: line, count: 1})
