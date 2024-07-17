@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"bytes"
 	"fmt"
 	"golox/internal/token"
 )
@@ -34,39 +35,43 @@ func (l *Lexer) ScanToken() token.Token {
 
 	c := l.advance()
 
-	switch c {
-	case '(':
+	switch {
+	case c == '(':
 		return l.makeToken(token.LeftParen)
-	case ')':
+	case c == ')':
 		return l.makeToken(token.RightParen)
-	case '{':
+	case c == '{':
 		return l.makeToken(token.LeftBrace)
-	case '}':
+	case c == '}':
 		return l.makeToken(token.RightBrace)
-	case ';':
+	case c == ';':
 		return l.makeToken(token.Semicolon)
-	case ',':
+	case c == ',':
 		return l.makeToken(token.Comma)
-	case '.':
+	case c == '.':
 		return l.makeToken(token.Dot)
-	case '-':
+	case c == '-':
 		return l.makeToken(token.Minus)
-	case '+':
+	case c == '+':
 		return l.makeToken(token.Plus)
-	case '/':
+	case c == '/':
 		return l.makeToken(token.Slash)
-	case '*':
+	case c == '*':
 		return l.makeToken(token.Star)
-	case '!':
+	case c == '!':
 		return l.makeMatchedToken('=', token.BangEqual, token.Bang)
-	case '=':
+	case c == '=':
 		return l.makeMatchedToken('=', token.EqualEqual, token.Equal)
-	case '<':
+	case c == '<':
 		return l.makeMatchedToken('=', token.LessEqual, token.Less)
-	case '>':
+	case c == '>':
 		return l.makeMatchedToken('=', token.GreaterEqual, token.Greater)
-	case '"':
+	case c == '"':
 		return l.string()
+	case isAlpha(c):
+		return l.identifier()
+	case isDigit(c):
+		return l.number()
 	}
 
 	err := fmt.Sprintf("Unrecognized character, %v / \"%s\"", c, string(c))
@@ -196,4 +201,92 @@ func (l *Lexer) string() token.Token {
 
 	l.current++
 	return l.makeToken(token.String)
+}
+
+func (l *Lexer) identifier() token.Token {
+	for isAlpha(l.peek()) || isDigit(l.peek()) {
+		l.current++
+	}
+	return l.makeToken(l.identifierType())
+}
+
+func (l *Lexer) number() token.Token {
+	for isDigit(l.peek()) {
+		l.current++
+	}
+
+	if l.peek() == '.' && isDigit(l.peekNext()) {
+		l.current++
+		for isDigit(l.peek()) {
+			l.current++
+		}
+	}
+
+	return l.makeToken(token.Number)
+}
+
+func (l *Lexer) identifierType() token.Type {
+	switch c := l.source[l.start]; c {
+	case 'a':
+		return l.checkKeyword(1, []byte("nd"), token.And)
+	case 'c':
+		return l.checkKeyword(1, []byte("lass"), token.Class)
+	case 'e':
+		return l.checkKeyword(1, []byte("lse"), token.Else)
+	case 'f':
+		if l.current-l.start > 1 {
+			switch nc := l.source[l.start+1]; nc {
+			case 'a':
+				return l.checkKeyword(2, []byte("lse"), token.False)
+			case 'o':
+				return l.checkKeyword(2, []byte("r"), token.For)
+			case 'u':
+				return l.checkKeyword(2, []byte("n"), token.Fun)
+			}
+		}
+	case 'i':
+		return l.checkKeyword(1, []byte("f"), token.If)
+	case 'n':
+		return l.checkKeyword(1, []byte("il"), token.Nil)
+	case 'o':
+		return l.checkKeyword(1, []byte("r"), token.Or)
+	case 'p':
+		return l.checkKeyword(1, []byte("rint"), token.Print)
+	case 'r':
+		return l.checkKeyword(1, []byte("eturn"), token.Return)
+	case 's':
+		return l.checkKeyword(1, []byte("uper"), token.Super)
+	case 't':
+		if l.current-l.start > 1 {
+			switch nc := l.source[l.start+1]; nc {
+			case 'h':
+				return l.checkKeyword(2, []byte("is"), token.This)
+			case 'r':
+				return l.checkKeyword(2, []byte("ue"), token.True)
+			}
+		}
+	case 'v':
+		return l.checkKeyword(1, []byte("ar"), token.Var)
+	case 'w':
+		return l.checkKeyword(1, []byte("hile"), token.While)
+	}
+
+	return token.Identifier
+}
+
+func (l *Lexer) checkKeyword(start int, rest []byte, t token.Type) token.Type {
+	if bytes.Equal(l.source[l.start+start:len(rest)+start], rest) {
+		return t
+	}
+	return token.Identifier
+}
+
+func isAlpha(c byte) bool {
+	return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		c == '_'
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
 }

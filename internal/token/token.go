@@ -1,5 +1,7 @@
 package token
 
+import "fmt"
+
 const (
 	// Single-character tokens.
 	LeftParen Type = iota
@@ -54,4 +56,8 @@ type Token struct {
 	Type   Type
 	Lexeme []byte
 	Line   int
+}
+
+func (t Token) String() string {
+    return fmt.Sprintf("Type: %v, Lexeme: %s, Line: %d", t.Type, t.Lexeme, t.Line)
 }
