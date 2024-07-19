@@ -2,18 +2,8 @@ package chunk
 
 import (
 	"fmt"
+	"golox/internal/opcode"
 	"golox/internal/value"
-)
-
-const (
-	OP_CONSTANT byte = iota
-	OP_CONSTANT_LONG
-	OP_ADD
-	OP_SUBTRACT
-	OP_MULTIPLY
-	OP_DIVIDE
-	OP_NEGATE
-	OP_RETURN
 )
 
 const maxConstantIndex = 255
@@ -64,19 +54,19 @@ func (c *Chunk) Free() {
 	c.Constants.Free()
 }
 
-func (c *Chunk) WriteConstant(value value.Value, line uint16) {
+func (c *Chunk) WriteConstant(value value.Value, line uint16) (errMsg string, hasErr bool) {
 	if i := c.AddConstant(value); i <= maxConstantIndex {
-		c.Write(OP_CONSTANT, line)
+		c.Write(opcode.Constant, line)
 		c.Write(byte(i), line)
 	} else if i <= maxConstantLongIndex {
-		c.Write(OP_CONSTANT_LONG, line)
+		c.Write(opcode.ConstantLong, line)
 		c.Write(byte(i>>16), line)
 		c.Write(byte(i>>8), line)
 		c.Write(byte(i), line)
 	} else {
-		errMsg := fmt.Sprintf("Too many constants (%d), must be less than 16,777,216", i)
-		panic(errMsg)
+		return fmt.Sprintf("Too many constants (%d), must be less than 16,777,216", i), true
 	}
+	return "", false
 }
 
 func (c *Chunk) Write(byte byte, line uint16) {

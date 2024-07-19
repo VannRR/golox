@@ -10,7 +10,7 @@ type Lexer struct {
 	source  []byte
 	start   int
 	current int
-	line    int
+	line    uint16
 }
 
 func NewLexer(source *[]byte) *Lexer {
@@ -58,6 +58,8 @@ func (l *Lexer) ScanToken() token.Token {
 		return l.makeToken(token.Slash)
 	case c == '*':
 		return l.makeToken(token.Star)
+	case c == '%':
+		return l.makeToken(token.Percent)
 	case c == '!':
 		return l.makeMatchedToken('=', token.BangEqual, token.Bang)
 	case c == '=':
@@ -275,7 +277,9 @@ func (l *Lexer) identifierType() token.Type {
 }
 
 func (l *Lexer) checkKeyword(start int, rest []byte, t token.Type) token.Type {
-	if bytes.Equal(l.source[l.start+start:len(rest)+start], rest) {
+	s := l.start + start
+	e := len(rest) + start - 1
+	if s <= e && bytes.Equal(l.source[s:e], rest) {
 		return t
 	}
 	return token.Identifier

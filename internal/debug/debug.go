@@ -3,9 +3,21 @@ package debug
 import (
 	"fmt"
 	"golox/internal/chunk"
+	"golox/internal/opcode"
 )
 
-func DisassembleInstruction(c chunk.Chunk, offset int) int {
+const PrintCode bool = true
+const TraceExecution bool = true
+
+func DisassembleChunk(c *chunk.Chunk, name string) {
+	fmt.Printf("== %s ==\n", name)
+
+	for offset := 0; offset < c.Count(); {
+		offset = DisassembleInstruction(c, offset)
+	}
+}
+
+func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 	fmt.Printf("%04d ", offset)
 
 	if l := c.GetLine(offset); offset > 0 && l == c.GetLine(offset-1) {
@@ -15,29 +27,31 @@ func DisassembleInstruction(c chunk.Chunk, offset int) int {
 	}
 
 	switch op := c.Code[offset]; op {
-	case chunk.OP_CONSTANT:
-		return constantInstruction("OP_CONSTANT", c, offset)
-	case chunk.OP_CONSTANT_LONG:
-		return constantLongInstruction("OP_CONSTANT_LONG", c, offset)
-	case chunk.OP_ADD:
-		return simpleInstruction("OP_ADD", offset)
-	case chunk.OP_SUBTRACT:
-		return simpleInstruction("OP_SUBTRACT", offset)
-	case chunk.OP_MULTIPLY:
-		return simpleInstruction("OP_MULTIPLY", offset)
-	case chunk.OP_DIVIDE:
-		return simpleInstruction("OP_DIVIDE", offset)
-	case chunk.OP_NEGATE:
-		return simpleInstruction("OP_NEGATE", offset)
-	case chunk.OP_RETURN:
-		return simpleInstruction("OP_RETURN", offset)
+	case opcode.Constant:
+		return constantInstruction("Constant", c, offset)
+	case opcode.ConstantLong:
+		return constantLongInstruction("ConstantLong", c, offset)
+	case opcode.Add:
+		return simpleInstruction("Add", offset)
+	case opcode.Subtract:
+		return simpleInstruction("Subtract", offset)
+	case opcode.Multiply:
+		return simpleInstruction("Multiply", offset)
+	case opcode.Divide:
+		return simpleInstruction("Divide", offset)
+	case opcode.Modulo:
+		return simpleInstruction("Modulo", offset)
+	case opcode.Negate:
+		return simpleInstruction("Negate", offset)
+	case opcode.Return:
+		return simpleInstruction("Return", offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", op)
 		return offset + 1
 	}
 }
 
-func constantInstruction(name string, c chunk.Chunk, offset int) int {
+func constantInstruction(name string, c *chunk.Chunk, offset int) int {
 	constantIndex := c.Code[offset+1]
 	fmt.Printf("%-16s %4d '", name, constantIndex)
 	c.Constants[constantIndex].Print()
@@ -45,7 +59,7 @@ func constantInstruction(name string, c chunk.Chunk, offset int) int {
 	return offset + 2
 }
 
-func constantLongInstruction(name string, c chunk.Chunk, offset int) int {
+func constantLongInstruction(name string, c *chunk.Chunk, offset int) int {
 	constantIndex := uint32(c.Code[offset+1]) << 16
 	constantIndex += uint32(c.Code[offset+2]) << 8
 	constantIndex += uint32(c.Code[offset+3])

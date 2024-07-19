@@ -11,8 +11,6 @@ import (
 
 type InterpretResult = uint8
 
-const DEBUG_TRACE_EXECUTION bool = true
-
 const (
 	INTERPRET_OK InterpretResult = iota
 	INTERPRET_COMPILE_ERROR
@@ -47,13 +45,25 @@ func (vm *VM) pop() value.Value {
 }
 
 func (vm *VM) Interpret(source *[]byte) InterpretResult {
-	compiler.Compile(source)
-	return INTERPRET_OK
+	c := chunk.NewChunk()
+
+	if !compiler.Compile(source, c) {
+		c.Free()
+		return INTERPRET_COMPILE_ERROR
+	}
+
+	vm.chunk = c
+	vm.ip = 0
+
+	result := vm.run()
+
+	c.Free()
+	return result
 }
 
 func (vm *VM) run() InterpretResult {
 	for {
-		if DEBUG_TRACE_EXECUTION {
+		if debug.TraceExecution {
 			fmt.Printf("          ")
 			for slot := 0; slot < vm.stackTop; slot++ {
 				fmt.Printf("[ ")
@@ -61,7 +71,7 @@ func (vm *VM) run() InterpretResult {
 				fmt.Printf(" ]")
 			}
 			fmt.Printf("\n")
-			debug.DisassembleInstruction(*vm.chunk, int(vm.chunk.Code[vm.ip]))
+			debug.DisassembleInstruction(vm.chunk, vm.ip)
 		}
 		switch instruction := vm.readByte(); instruction {
 		case opcode.Constant:
@@ -78,6 +88,8 @@ func (vm *VM) run() InterpretResult {
 			vm.binaryOP(opcode.Multiply)
 		case opcode.Divide:
 			vm.binaryOP(opcode.Divide)
+		case opcode.Modulo:
+			vm.binaryOP(opcode.Modulo)
 		case opcode.Negate:
 			value := &vm.stack[vm.stackTop-1]
 			*value = -*value
@@ -113,6 +125,8 @@ func (vm *VM) binaryOP(operator byte) {
 		*a = *a * b
 	case opcode.Divide:
 		*a = *a / b
+	case opcode.Modulo:
+		*a = value.Value(int(*a) % int(b))
 	default:
 		err := fmt.Sprintf("Invalid binary operator %v", operator)
 		panic(err)

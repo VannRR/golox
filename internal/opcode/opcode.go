@@ -7,6 +7,7 @@ const (
 	Subtract
 	Multiply
 	Divide
+	Modulo
 	Negate
 	Return
 )

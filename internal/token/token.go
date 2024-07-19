@@ -15,6 +15,7 @@ const (
 	Semicolon
 	Slash
 	Star
+	Percent
 	// One or two character tokens.
 	Bang
 	BangEqual
@@ -55,9 +56,9 @@ type Type = uint8
 type Token struct {
 	Type   Type
 	Lexeme []byte
-	Line   int
+	Line   uint16
 }
 
 func (t Token) String() string {
-    return fmt.Sprintf("Type: %v, Lexeme: %s, Line: %d", t.Type, t.Lexeme, t.Line)
+	return fmt.Sprintf("Type: %v, Lexeme: %s, Line: %d", t.Type, t.Lexeme, t.Line)
 }
