@@ -7,6 +7,7 @@ import (
 	"golox/internal/debug"
 	"golox/internal/opcode"
 	"golox/internal/value"
+	"os"
 )
 
 type InterpretResult = uint8
@@ -15,6 +16,7 @@ const (
 	INTERPRET_OK InterpretResult = iota
 	INTERPRET_COMPILE_ERROR
 	INTERPRET_RUNTIME_ERROR
+	INTERPRET_NO_RESULT
 )
 
 const STACK_MAX int = 256
@@ -42,6 +44,10 @@ func (vm *VM) push(value value.Value) {
 func (vm *VM) pop() value.Value {
 	vm.stackTop--
 	return vm.stack[vm.stackTop]
+}
+
+func (vm *VM) peek(distance int) *value.Value {
+	return &vm.stack[vm.stackTop-1-distance]
 }
 
 func (vm *VM) Interpret(source *[]byte) InterpretResult {
@@ -73,26 +79,23 @@ func (vm *VM) run() InterpretResult {
 			fmt.Printf("\n")
 			debug.DisassembleInstruction(vm.chunk, vm.ip)
 		}
+
 		switch instruction := vm.readByte(); instruction {
-		case opcode.Constant:
+		case opcode.Constant, opcode.ConstantLong:
 			constant := vm.readConstant()
 			vm.push(constant)
-		case opcode.ConstantLong:
-			constant := vm.readConstant()
-			vm.push(constant)
-		case opcode.Add:
-			vm.binaryOP(opcode.Add)
-		case opcode.Subtract:
-			vm.binaryOP(opcode.Subtract)
-		case opcode.Multiply:
-			vm.binaryOP(opcode.Multiply)
-		case opcode.Divide:
-			vm.binaryOP(opcode.Divide)
-		case opcode.Modulo:
-			vm.binaryOP(opcode.Modulo)
+		case opcode.Add, opcode.Subtract, opcode.Multiply, opcode.Divide, opcode.Modulo:
+			result := vm.binaryOP(instruction)
+			if result != INTERPRET_NO_RESULT {
+				return result
+			}
 		case opcode.Negate:
-			value := &vm.stack[vm.stackTop-1]
-			*value = -*value
+			if val := vm.peek(0); !val.IsNumber() {
+				vm.runtimeError("Operand must be a number.")
+				return INTERPRET_RUNTIME_ERROR
+			} else {
+				*val = value.NewNumberVal(-val.AsNumber())
+			}
 		case opcode.Return:
 			vm.pop().Print()
 			fmt.Printf("\n")
@@ -113,24 +116,37 @@ func (vm *VM) readConstant() value.Value {
 	return vm.chunk.Constants[vm.readByte()]
 }
 
-func (vm *VM) binaryOP(operator byte) {
+func (vm *VM) binaryOP(operator byte) InterpretResult {
+	a := vm.peek(1)
+	if b := vm.peek(0); !b.IsNumber() || !a.IsNumber() {
+		vm.runtimeError("Operands must be numbers.")
+		return INTERPRET_RUNTIME_ERROR
+	}
 	b := vm.pop()
-	a := &vm.stack[vm.stackTop-1]
+
 	switch operator {
 	case opcode.Add:
-		*a = *a + b
+		*a = value.NewNumberVal(a.AsNumber() + b.AsNumber())
 	case opcode.Subtract:
-		*a = *a - b
+		*a = value.NewNumberVal(a.AsNumber() - b.AsNumber())
 	case opcode.Multiply:
-		*a = *a * b
+		*a = value.NewNumberVal(a.AsNumber() * b.AsNumber())
 	case opcode.Divide:
-		*a = *a / b
+		*a = value.NewNumberVal(a.AsNumber() / b.AsNumber())
 	case opcode.Modulo:
-		*a = value.Value(int(*a) % int(b))
+		*a = value.NewNumberVal(float64(int(a.AsNumber()) % int(b.AsNumber())))
 	default:
 		err := fmt.Sprintf("Invalid binary operator %v", operator)
 		panic(err)
 	}
+
+	return INTERPRET_NO_RESULT
+}
+
+func (vm *VM) runtimeError(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, args...)
+	fmt.Fprintf(os.Stderr, "[line %d] in script\n", vm.chunk.GetLine(vm.ip-1))
+	vm.resetStack()
 }
 
 func (vm *VM) resetStack() {

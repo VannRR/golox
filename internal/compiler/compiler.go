@@ -125,7 +125,7 @@ func (p *Parser) grouping() {
 
 func (p *Parser) number() {
 	v, _ := strconv.ParseFloat(string(p.previous.Lexeme), 64)
-	p.emitConstant(value.Value(v))
+	p.emitConstant(value.NewNumberVal(v))
 }
 
 func (p *Parser) binary() {
