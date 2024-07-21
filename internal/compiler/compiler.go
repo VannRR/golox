@@ -41,7 +41,7 @@ func init() {
 	rules[token.Slash] = ParseRule{nil, (*Parser).binary, PrecFactor}
 	rules[token.Star] = ParseRule{nil, (*Parser).binary, PrecFactor}
 	rules[token.Percent] = ParseRule{nil, (*Parser).binary, PrecFactor}
-	rules[token.Bang] = ParseRule{nil, nil, PrecNone}
+	rules[token.Bang] = ParseRule{(*Parser).unary, nil, PrecNone}
 	rules[token.BangEqual] = ParseRule{nil, nil, PrecNone}
 	rules[token.Equal] = ParseRule{nil, nil, PrecNone}
 	rules[token.EqualEqual] = ParseRule{nil, nil, PrecNone}
@@ -55,17 +55,17 @@ func init() {
 	rules[token.And] = ParseRule{nil, nil, PrecNone}
 	rules[token.Class] = ParseRule{nil, nil, PrecNone}
 	rules[token.Else] = ParseRule{nil, nil, PrecNone}
-	rules[token.False] = ParseRule{nil, nil, PrecNone}
+	rules[token.False] = ParseRule{(*Parser).literal, nil, PrecNone}
 	rules[token.For] = ParseRule{nil, nil, PrecNone}
 	rules[token.Fun] = ParseRule{nil, nil, PrecNone}
 	rules[token.If] = ParseRule{nil, nil, PrecNone}
-	rules[token.Nil] = ParseRule{nil, nil, PrecNone}
+	rules[token.Nil] = ParseRule{(*Parser).literal, nil, PrecNone}
 	rules[token.Or] = ParseRule{nil, nil, PrecNone}
 	rules[token.Print] = ParseRule{nil, nil, PrecNone}
 	rules[token.Return] = ParseRule{nil, nil, PrecNone}
 	rules[token.Super] = ParseRule{nil, nil, PrecNone}
 	rules[token.This] = ParseRule{nil, nil, PrecNone}
-	rules[token.True] = ParseRule{nil, nil, PrecNone}
+	rules[token.True] = ParseRule{(*Parser).literal, nil, PrecNone}
 	rules[token.Var] = ParseRule{nil, nil, PrecNone}
 	rules[token.While] = ParseRule{nil, nil, PrecNone}
 	rules[token.Error] = ParseRule{nil, nil, PrecNone}
@@ -124,7 +124,10 @@ func (p *Parser) grouping() {
 }
 
 func (p *Parser) number() {
-	v, _ := strconv.ParseFloat(string(p.previous.Lexeme), 64)
+	v, err := strconv.ParseFloat(string(p.previous.Lexeme), 64)
+	if err != nil {
+		panic(err)
+	}
 	p.emitConstant(value.NewNumberVal(v))
 }
 
@@ -149,12 +152,27 @@ func (p *Parser) binary() {
 	}
 }
 
+func (p *Parser) literal() {
+	switch p.previous.Type {
+	case token.False:
+		p.emitByte(opcode.False)
+	case token.Nil:
+		p.emitByte(opcode.Nil)
+	case token.True:
+		p.emitByte(opcode.True)
+	default:
+		panic("literal parser, unknown operator type")
+	}
+}
+
 func (p *Parser) unary() {
 	operatorType := p.previous.Type
 
 	p.parsePrecedence(PrecUnary)
 
 	switch operatorType {
+	case token.Bang:
+		p.emitByte(opcode.Not)
 	case token.Minus:
 		p.emitByte(opcode.Negate)
 	default:
@@ -165,6 +183,7 @@ func (p *Parser) unary() {
 func (p *Parser) parsePrecedence(precedence Precedence) {
 	p.advance()
 	prefixRule := getRule(p.previous.Type).prefix
+
 	if prefixRule == nil {
 		p.error([]byte("Expect expression."))
 		return

@@ -13,25 +13,23 @@ const (
 )
 
 type ValueType = uint8
-
 type Value struct {
-	Type  ValueType
-	bytes [8]byte
+	Type ValueType
+	of   [8]byte
 }
 
 func NewBoolVal(v bool) Value {
 	if v {
 		return Value{
-			Type:  Bool,
-			bytes: [8]byte{1},
+			Type: Bool,
+			of:   [8]byte{1},
 		}
 	} else {
 		return Value{
-			Type:  Bool,
-			bytes: [8]byte{0},
+			Type: Bool,
+			of:   [8]byte{0},
 		}
 	}
-
 }
 
 func NewNilVal() Value {
@@ -44,9 +42,13 @@ func NewNumberVal(v float64) Value {
 	var bytes [8]byte
 	binary.LittleEndian.PutUint64(bytes[:], math.Float64bits(v))
 	return Value{
-		Type:  Number,
-		bytes: bytes,
+		Type: Number,
+		of:   bytes,
 	}
+}
+
+func (v *Value) IsFalsey() bool {
+	return v.Type == Nil || (v.Type == Bool && v.of[0] == 0)
 }
 
 func (v *Value) IsBool() bool {
@@ -60,15 +62,25 @@ func (v *Value) IsNumber() bool {
 }
 
 func (v *Value) AsBool() bool {
-	return v.bytes[0] == 1
+	return v.of[0] == 1
 }
 
 func (v *Value) AsNumber() float64 {
-	return math.Float64frombits(binary.LittleEndian.Uint64(v.bytes[:]))
+	return math.Float64frombits(binary.LittleEndian.Uint64(v.of[:]))
 }
 
 func (v Value) Print() {
-	fmt.Printf("%g", v.AsNumber())
+	switch v.Type {
+	case Bool:
+		fmt.Printf("%v", v.AsBool())
+	case Nil:
+		fmt.Print("nil")
+	case Number:
+		fmt.Printf("%v", v.AsNumber())
+	default:
+		msg := fmt.Sprintf("cannot print unknown type '%v'", v.Type)
+		panic(msg)
+	}
 }
 
 type ValueArray []Value

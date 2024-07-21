@@ -36,6 +36,10 @@ func (l *Lexer) ScanToken() token.Token {
 	c := l.advance()
 
 	switch {
+	case isAlpha(c):
+		return l.identifier()
+	case isDigit(c):
+		return l.number()
 	case c == '(':
 		return l.makeToken(token.LeftParen)
 	case c == ')':
@@ -70,10 +74,6 @@ func (l *Lexer) ScanToken() token.Token {
 		return l.makeMatchedToken('=', token.GreaterEqual, token.Greater)
 	case c == '"':
 		return l.string()
-	case isAlpha(c):
-		return l.identifier()
-	case isDigit(c):
-		return l.number()
 	}
 
 	err := fmt.Sprintf("Unrecognized character, %v / \"%s\"", c, string(c))
@@ -104,10 +104,7 @@ func (l *Lexer) peekNext() byte {
 }
 
 func (l *Lexer) match(expected byte) bool {
-	if l.isAtEnd() {
-		return false
-	}
-	if l.source[l.current] != expected {
+	if l.isAtEnd() || l.source[l.current] != expected {
 		return false
 	}
 	l.current++
@@ -278,8 +275,8 @@ func (l *Lexer) identifierType() token.Type {
 
 func (l *Lexer) checkKeyword(start int, rest []byte, t token.Type) token.Type {
 	s := l.start + start
-	e := len(rest) + start - 1
-	if s <= e && bytes.Equal(l.source[s:e], rest) {
+	e := len(rest) + s
+	if e < len(l.source) && bytes.Equal(l.source[s:e], rest) {
 		return t
 	}
 	return token.Identifier

@@ -84,11 +84,20 @@ func (vm *VM) run() InterpretResult {
 		case opcode.Constant, opcode.ConstantLong:
 			constant := vm.readConstant()
 			vm.push(constant)
+		case opcode.Nil:
+			vm.push(value.NewNilVal())
+		case opcode.True:
+			vm.push(value.NewBoolVal(true))
+		case opcode.False:
+			vm.push(value.NewBoolVal(false))
 		case opcode.Add, opcode.Subtract, opcode.Multiply, opcode.Divide, opcode.Modulo:
 			result := vm.binaryOP(instruction)
 			if result != INTERPRET_NO_RESULT {
 				return result
 			}
+		case opcode.Not:
+			val := vm.peek(0)
+			*val = value.NewBoolVal(val.IsFalsey())
 		case opcode.Negate:
 			if val := vm.peek(0); !val.IsNumber() {
 				vm.runtimeError("Operand must be a number.")

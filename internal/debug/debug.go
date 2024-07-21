@@ -31,6 +31,12 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 		return constantInstruction("Constant", c, offset)
 	case opcode.ConstantLong:
 		return constantLongInstruction("ConstantLong", c, offset)
+	case opcode.Nil:
+		return simpleInstruction("Nil", offset)
+	case opcode.True:
+		return simpleInstruction("True", offset)
+	case opcode.False:
+		return simpleInstruction("False", offset)
 	case opcode.Add:
 		return simpleInstruction("Add", offset)
 	case opcode.Subtract:
@@ -39,6 +45,8 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 		return simpleInstruction("Multiply", offset)
 	case opcode.Divide:
 		return simpleInstruction("Divide", offset)
+	case opcode.Not:
+		return simpleInstruction("Not", offset)
 	case opcode.Modulo:
 		return simpleInstruction("Modulo", offset)
 	case opcode.Negate:
