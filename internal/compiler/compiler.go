@@ -42,15 +42,15 @@ func init() {
 	rules[token.Star] = ParseRule{nil, (*Parser).binary, PrecFactor}
 	rules[token.Percent] = ParseRule{nil, (*Parser).binary, PrecFactor}
 	rules[token.Bang] = ParseRule{(*Parser).unary, nil, PrecNone}
-	rules[token.BangEqual] = ParseRule{nil, nil, PrecNone}
+	rules[token.BangEqual] = ParseRule{nil, (*Parser).binary, PrecEquality}
 	rules[token.Equal] = ParseRule{nil, nil, PrecNone}
-	rules[token.EqualEqual] = ParseRule{nil, nil, PrecNone}
-	rules[token.Greater] = ParseRule{nil, nil, PrecNone}
-	rules[token.GreaterEqual] = ParseRule{nil, nil, PrecNone}
-	rules[token.Less] = ParseRule{nil, nil, PrecNone}
-	rules[token.LessEqual] = ParseRule{nil, nil, PrecNone}
+	rules[token.EqualEqual] = ParseRule{nil, (*Parser).binary, PrecEquality}
+	rules[token.Greater] = ParseRule{nil, (*Parser).binary, PrecComparison}
+	rules[token.GreaterEqual] = ParseRule{nil, (*Parser).binary, PrecComparison}
+	rules[token.Less] = ParseRule{nil, (*Parser).binary, PrecComparison}
+	rules[token.LessEqual] = ParseRule{nil, (*Parser).binary, PrecComparison}
 	rules[token.Identifier] = ParseRule{nil, nil, PrecNone}
-	rules[token.String] = ParseRule{nil, nil, PrecNone}
+	rules[token.String] = ParseRule{(*Parser).string, nil, PrecNone}
 	rules[token.Number] = ParseRule{(*Parser).number, nil, PrecNone}
 	rules[token.And] = ParseRule{nil, nil, PrecNone}
 	rules[token.Class] = ParseRule{nil, nil, PrecNone}
@@ -128,7 +128,11 @@ func (p *Parser) number() {
 	if err != nil {
 		panic(err)
 	}
-	p.emitConstant(value.NewNumberVal(v))
+	p.emitConstant(value.NewNumber(v))
+}
+
+func (p *Parser) string() {
+	p.emitConstant(value.NewObjString(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
 }
 
 func (p *Parser) binary() {
@@ -137,6 +141,18 @@ func (p *Parser) binary() {
 	p.parsePrecedence(Precedence(rule.precedence + 1))
 
 	switch operatorType {
+	case token.BangEqual:
+		p.emitByte(opcode.NotEqual)
+	case token.EqualEqual:
+		p.emitByte(opcode.Equal)
+	case token.Greater:
+		p.emitByte(opcode.Greater)
+	case token.GreaterEqual:
+		p.emitByte(opcode.GreaterEqual)
+	case token.Less:
+		p.emitByte(opcode.Less)
+	case token.LessEqual:
+		p.emitByte(opcode.LessEqual)
 	case token.Plus:
 		p.emitByte(opcode.Add)
 	case token.Minus:

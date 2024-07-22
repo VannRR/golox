@@ -1,84 +1,105 @@
 package value
 
 import (
-	"encoding/binary"
 	"fmt"
-	"math"
+	"golox/internal/val-type"
 )
 
-const (
-	Bool ValueType = iota
-	Nil
-	Number
-)
-
-type ValueType = uint8
 type Value struct {
-	Type ValueType
-	of   [8]byte
+	of   interface{}
+	Type valtype.Type
 }
 
-func NewBoolVal(v bool) Value {
-	if v {
-		return Value{
-			Type: Bool,
-			of:   [8]byte{1},
-		}
-	} else {
-		return Value{
-			Type: Bool,
-			of:   [8]byte{0},
-		}
+func NewBool(v bool) Value {
+	return Value{
+		Type: valtype.Bool,
+		of:   v,
 	}
 }
 
-func NewNilVal() Value {
+func NewNil() Value {
 	return Value{
-		Type: Nil,
+		Type: valtype.Nil,
 	}
 }
 
-func NewNumberVal(v float64) Value {
-	var bytes [8]byte
-	binary.LittleEndian.PutUint64(bytes[:], math.Float64bits(v))
+func NewNumber(v float64) Value {
 	return Value{
-		Type: Number,
-		of:   bytes,
+		Type: valtype.Number,
+		of:   v,
+	}
+}
+
+func NewObjString(s string) Value {
+	return Value{
+		Type: valtype.ObjString,
+		of:   s,
 	}
 }
 
 func (v *Value) IsFalsey() bool {
-	return v.Type == Nil || (v.Type == Bool && v.of[0] == 0)
+	return v.Type == valtype.Nil || (v.Type == valtype.Bool && v.of == false)
 }
 
 func (v *Value) IsBool() bool {
-	return v.Type == Bool
+	return v.Type == valtype.Bool
 }
+
 func (v *Value) IsNil() bool {
-	return v.Type == Nil
+	return v.Type == valtype.Nil
 }
+
 func (v *Value) IsNumber() bool {
-	return v.Type == Number
+	return v.Type == valtype.Number
+}
+
+func (v *Value) IsString() bool {
+	return v.Type == valtype.ObjString
 }
 
 func (v *Value) AsBool() bool {
-	return v.of[0] == 1
+	return v.of.(bool)
 }
 
 func (v *Value) AsNumber() float64 {
-	return math.Float64frombits(binary.LittleEndian.Uint64(v.of[:]))
+	return v.of.(float64)
+}
+
+func (v *Value) AsString() string {
+	return v.of.(string)
 }
 
 func (v Value) Print() {
 	switch v.Type {
-	case Bool:
+	case valtype.Bool:
 		fmt.Printf("%v", v.AsBool())
-	case Nil:
+	case valtype.Nil:
 		fmt.Print("nil")
-	case Number:
+	case valtype.Number:
 		fmt.Printf("%v", v.AsNumber())
+	case valtype.ObjString:
+		fmt.Printf("%v", v.AsString())
 	default:
 		msg := fmt.Sprintf("cannot print unknown type '%v'", v.Type)
+		panic(msg)
+	}
+}
+
+func (a *Value) IsEqual(b *Value) bool {
+	if a.Type != b.Type {
+		return false
+	}
+	switch a.Type {
+	case valtype.Bool:
+		return a.AsBool() == b.AsBool()
+	case valtype.Nil:
+		return true
+	case valtype.Number:
+		return a.AsNumber() == b.AsNumber()
+	case valtype.ObjString:
+		return a.AsString() == b.AsString()
+	default:
+		msg := fmt.Sprintf("cannot compare unknown type '%v' as equal", a.Type)
 		panic(msg)
 	}
 }

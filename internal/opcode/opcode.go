@@ -6,6 +6,12 @@ const (
 	Nil
 	True
 	False
+	Equal
+	NotEqual
+	Greater
+	GreaterEqual
+	Less
+	LessEqual
 	Add
 	Subtract
 	Multiply

@@ -35,44 +35,48 @@ func (l *Lexer) ScanToken() token.Token {
 
 	c := l.advance()
 
-	switch {
-	case isAlpha(c):
-		return l.identifier()
-	case isDigit(c):
-		return l.number()
-	case c == '(':
+        if isAlpha(c) {
+           return l.identifier()
+        }
+
+        if isDigit(c) {
+        return l.number()
+    }
+
+	switch c {
+	case '(':
 		return l.makeToken(token.LeftParen)
-	case c == ')':
+	case ')':
 		return l.makeToken(token.RightParen)
-	case c == '{':
+	case '{':
 		return l.makeToken(token.LeftBrace)
-	case c == '}':
+	case '}':
 		return l.makeToken(token.RightBrace)
-	case c == ';':
+	case ';':
 		return l.makeToken(token.Semicolon)
-	case c == ',':
+	case ',':
 		return l.makeToken(token.Comma)
-	case c == '.':
+	case '.':
 		return l.makeToken(token.Dot)
-	case c == '-':
+	case '-':
 		return l.makeToken(token.Minus)
-	case c == '+':
+	case '+':
 		return l.makeToken(token.Plus)
-	case c == '/':
+	case '/':
 		return l.makeToken(token.Slash)
-	case c == '*':
+	case '*':
 		return l.makeToken(token.Star)
-	case c == '%':
+	case '%':
 		return l.makeToken(token.Percent)
-	case c == '!':
+	case '!':
 		return l.makeMatchedToken('=', token.BangEqual, token.Bang)
-	case c == '=':
+	case '=':
 		return l.makeMatchedToken('=', token.EqualEqual, token.Equal)
-	case c == '<':
+	case '<':
 		return l.makeMatchedToken('=', token.LessEqual, token.Less)
-	case c == '>':
+	case '>':
 		return l.makeMatchedToken('=', token.GreaterEqual, token.Greater)
-	case c == '"':
+	case '"':
 		return l.string()
 	}
 

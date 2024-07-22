@@ -22,9 +22,9 @@ const (
 const STACK_MAX int = 256
 
 type VM struct {
+	stack    [STACK_MAX]value.Value
 	chunk    *chunk.Chunk
 	ip       int
-	stack    [STACK_MAX]value.Value
 	stackTop int
 }
 
@@ -85,25 +85,47 @@ func (vm *VM) run() InterpretResult {
 			constant := vm.readConstant()
 			vm.push(constant)
 		case opcode.Nil:
-			vm.push(value.NewNilVal())
+			vm.push(value.NewNil())
 		case opcode.True:
-			vm.push(value.NewBoolVal(true))
+			vm.push(value.NewBool(true))
 		case opcode.False:
-			vm.push(value.NewBoolVal(false))
-		case opcode.Add, opcode.Subtract, opcode.Multiply, opcode.Divide, opcode.Modulo:
+			vm.push(value.NewBool(false))
+		case opcode.Equal:
+			a := vm.peek(1)
+			b := vm.pop()
+			*a = value.NewBool((a.IsEqual(&b)))
+		case opcode.NotEqual:
+			a := vm.peek(1)
+			b := vm.pop()
+			*a = value.NewBool((!a.IsEqual(&b)))
+		case opcode.Add:
+			a := vm.peek(1)
+			if b := vm.peek(0); a.IsString() && b.IsString() {
+				b := vm.pop()
+				*a = value.NewObjString(a.AsString() + b.AsString())
+			} else if a.IsNumber() && b.IsNumber() {
+				b := vm.pop()
+				*a = value.NewNumber(a.AsNumber() + b.AsNumber())
+			} else {
+				vm.runtimeError(
+					"Operands must be two numbers or two strings.")
+				return INTERPRET_RUNTIME_ERROR
+			}
+		case opcode.Greater, opcode.GreaterEqual, opcode.Less, opcode.LessEqual,
+			opcode.Subtract, opcode.Multiply, opcode.Divide, opcode.Modulo:
 			result := vm.binaryOP(instruction)
 			if result != INTERPRET_NO_RESULT {
 				return result
 			}
 		case opcode.Not:
 			val := vm.peek(0)
-			*val = value.NewBoolVal(val.IsFalsey())
+			*val = value.NewBool(val.IsFalsey())
 		case opcode.Negate:
 			if val := vm.peek(0); !val.IsNumber() {
 				vm.runtimeError("Operand must be a number.")
 				return INTERPRET_RUNTIME_ERROR
 			} else {
-				*val = value.NewNumberVal(-val.AsNumber())
+				*val = value.NewNumber(-val.AsNumber())
 			}
 		case opcode.Return:
 			vm.pop().Print()
@@ -134,16 +156,24 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 	b := vm.pop()
 
 	switch operator {
-	case opcode.Add:
-		*a = value.NewNumberVal(a.AsNumber() + b.AsNumber())
+	case opcode.Greater:
+		*a = value.NewBool(a.AsNumber() > b.AsNumber())
+	case opcode.GreaterEqual:
+		*a = value.NewBool(a.AsNumber() >= b.AsNumber())
+	case opcode.Less:
+		*a = value.NewBool(a.AsNumber() < b.AsNumber())
+	case opcode.LessEqual:
+		*a = value.NewBool(a.AsNumber() <= b.AsNumber())
+	//case opcode.Add:
+	//	*a = value.NewNumber(a.AsNumber() + b.AsNumber())
 	case opcode.Subtract:
-		*a = value.NewNumberVal(a.AsNumber() - b.AsNumber())
+		*a = value.NewNumber(a.AsNumber() - b.AsNumber())
 	case opcode.Multiply:
-		*a = value.NewNumberVal(a.AsNumber() * b.AsNumber())
+		*a = value.NewNumber(a.AsNumber() * b.AsNumber())
 	case opcode.Divide:
-		*a = value.NewNumberVal(a.AsNumber() / b.AsNumber())
+		*a = value.NewNumber(a.AsNumber() / b.AsNumber())
 	case opcode.Modulo:
-		*a = value.NewNumberVal(float64(int(a.AsNumber()) % int(b.AsNumber())))
+		*a = value.NewNumber(float64(int(a.AsNumber()) % int(b.AsNumber())))
 	default:
 		err := fmt.Sprintf("Invalid binary operator %v", operator)
 		panic(err)
