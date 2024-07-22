@@ -1,10 +1,10 @@
 package valtype
 
 const (
-	Bool Type = iota
+	Bool ValType = iota
 	Nil
 	Number
-	ObjString
+	Obj
 )
 
-type Type = uint8
+type ValType = uint8

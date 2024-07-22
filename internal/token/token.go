@@ -4,7 +4,7 @@ import "fmt"
 
 const (
 	// Single-character tokens.
-	LeftParen Type = iota
+	LeftParen TokenType = iota
 	RightParen
 	LeftBrace
 	RightBrace
@@ -51,10 +51,10 @@ const (
 	Eof
 )
 
-type Type = uint8
+type TokenType = uint8
 
 type Token struct {
-	Type   Type
+	Type   TokenType
 	Lexeme []byte
 	Line   uint16
 }

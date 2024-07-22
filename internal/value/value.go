@@ -2,12 +2,22 @@ package value
 
 import (
 	"fmt"
+	"golox/internal/obj-type"
 	"golox/internal/val-type"
 )
 
+type Obj struct {
+	Type objtype.ObjType
+}
+
+type ObjString struct {
+	Obj
+	String string
+}
+
 type Value struct {
 	of   interface{}
-	Type valtype.Type
+	Type valtype.ValType
 }
 
 func NewBool(v bool) Value {
@@ -32,13 +42,25 @@ func NewNumber(v float64) Value {
 
 func NewObjString(s string) Value {
 	return Value{
-		Type: valtype.ObjString,
-		of:   s,
+		Type: valtype.Obj,
+		of: ObjString{
+			Obj: Obj{
+				Type: objtype.String,
+			},
+			String: s,
+		},
 	}
 }
 
 func (v *Value) IsFalsey() bool {
-	return v.Type == valtype.Nil || (v.Type == valtype.Bool && v.of == false)
+	switch v.Type {
+	case valtype.Nil:
+		return true
+	case valtype.Bool:
+		return v.of == false
+	default:
+		return false
+	}
 }
 
 func (v *Value) IsBool() bool {
@@ -53,20 +75,60 @@ func (v *Value) IsNumber() bool {
 	return v.Type == valtype.Number
 }
 
+func (v *Value) IsObj() bool {
+	return v.Type == valtype.Obj
+}
+
 func (v *Value) IsString() bool {
-	return v.Type == valtype.ObjString
+	if v.Type != valtype.Obj {
+		return false
+	}
+	obj, ok := v.of.(ObjString)
+	if !ok {
+		return false
+	}
+	return obj.Obj.Type == objtype.String
 }
 
 func (v *Value) AsBool() bool {
-	return v.of.(bool)
+	if b, ok := v.of.(bool); ok {
+		return b
+	}
+	panic(fmt.Sprintf("expected bool, got '%T'", v.of))
 }
 
 func (v *Value) AsNumber() float64 {
-	return v.of.(float64)
+	if n, ok := v.of.(float64); ok {
+		return n
+	}
+	panic(fmt.Sprintf("expected float64, got '%T'", v.of))
 }
 
-func (v *Value) AsString() string {
-	return v.of.(string)
+func (v *Value) AsObj() Obj {
+	if o, ok := v.of.(Obj); ok {
+		return o
+	}
+	panic(fmt.Sprintf("expected Obj, got '%T'", v.of))
+}
+
+func (v *Value) ObjType() objtype.ObjType {
+	switch obj := v.of.(type) {
+	case ObjString:
+		return objtype.String
+	default:
+		panic(fmt.Sprintf("unknown object type '%T'", obj))
+	}
+}
+
+func (v *Value) AsString() ObjString {
+	if s, ok := v.of.(ObjString); ok {
+		return s
+	}
+	panic(fmt.Sprintf("expected ObjString, got '%T'", v.of))
+}
+
+func (v *Value) AsGoString() string {
+	return v.AsString().String
 }
 
 func (v Value) Print() {
@@ -77,11 +139,15 @@ func (v Value) Print() {
 		fmt.Print("nil")
 	case valtype.Number:
 		fmt.Printf("%v", v.AsNumber())
-	case valtype.ObjString:
-		fmt.Printf("%v", v.AsString())
+	case valtype.Obj:
+		switch v.ObjType() {
+		case objtype.String:
+			fmt.Printf("%v", v.AsGoString())
+		default:
+			panic(fmt.Sprintf("cannot print unknown object type '%v'", v.ObjType()))
+		}
 	default:
-		msg := fmt.Sprintf("cannot print unknown type '%v'", v.Type)
-		panic(msg)
+		panic(fmt.Sprintf("cannot print unknown type '%v'", v.Type))
 	}
 }
 
@@ -96,11 +162,15 @@ func (a *Value) IsEqual(b *Value) bool {
 		return true
 	case valtype.Number:
 		return a.AsNumber() == b.AsNumber()
-	case valtype.ObjString:
-		return a.AsString() == b.AsString()
+	case valtype.Obj:
+		switch a.ObjType() {
+		case objtype.String:
+			return a.AsGoString() == b.AsGoString()
+		default:
+			panic(fmt.Sprintf("cannot compare unknown object type '%v' as equal", a.ObjType()))
+		}
 	default:
-		msg := fmt.Sprintf("cannot compare unknown type '%v' as equal", a.Type)
-		panic(msg)
+		panic(fmt.Sprintf("cannot compare unknown type '%v' as equal", a.Type))
 	}
 }
 

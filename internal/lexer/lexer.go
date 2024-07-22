@@ -35,13 +35,13 @@ func (l *Lexer) ScanToken() token.Token {
 
 	c := l.advance()
 
-        if isAlpha(c) {
-           return l.identifier()
-        }
+	if isAlpha(c) {
+		return l.identifier()
+	}
 
-        if isDigit(c) {
-        return l.number()
-    }
+	if isDigit(c) {
+		return l.number()
+	}
 
 	switch c {
 	case '(':
@@ -115,7 +115,7 @@ func (l *Lexer) match(expected byte) bool {
 	return true
 }
 
-func (l *Lexer) makeToken(tokenType token.Type) token.Token {
+func (l *Lexer) makeToken(tokenType token.TokenType) token.Token {
 	return token.Token{
 		Type:   tokenType,
 		Lexeme: l.source[l.start:l.current],
@@ -123,7 +123,7 @@ func (l *Lexer) makeToken(tokenType token.Type) token.Token {
 	}
 }
 
-func (l *Lexer) makeMatchedToken(expected byte, t token.Type, f token.Type) token.Token {
+func (l *Lexer) makeMatchedToken(expected byte, t token.TokenType, f token.TokenType) token.Token {
 	if l.match(expected) {
 		return l.makeToken(t)
 	} else {
@@ -228,7 +228,7 @@ func (l *Lexer) number() token.Token {
 	return l.makeToken(token.Number)
 }
 
-func (l *Lexer) identifierType() token.Type {
+func (l *Lexer) identifierType() token.TokenType {
 	switch c := l.source[l.start]; c {
 	case 'a':
 		return l.checkKeyword(1, []byte("nd"), token.And)
@@ -277,7 +277,7 @@ func (l *Lexer) identifierType() token.Type {
 	return token.Identifier
 }
 
-func (l *Lexer) checkKeyword(start int, rest []byte, t token.Type) token.Type {
+func (l *Lexer) checkKeyword(start int, rest []byte, t token.TokenType) token.TokenType {
 	s := l.start + start
 	e := len(rest) + s
 	if e < len(l.source) && bytes.Equal(l.source[s:e], rest) {

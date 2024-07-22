@@ -81,7 +81,7 @@ type ParseRule struct {
 	precedence Precedence
 }
 
-func getRule(tt token.Type) *ParseRule {
+func getRule(tt token.TokenType) *ParseRule {
 	return &rules[tt]
 }
 
@@ -253,7 +253,7 @@ func (p *Parser) advance() {
 	}
 }
 
-func (p *Parser) consume(tt token.Type, message []byte) {
+func (p *Parser) consume(tt token.TokenType, message []byte) {
 	if p.current.Type == tt {
 		p.advance()
 		return

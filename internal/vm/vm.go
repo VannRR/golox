@@ -26,6 +26,7 @@ type VM struct {
 	chunk    *chunk.Chunk
 	ip       int
 	stackTop int
+	objects  *value.Obj
 }
 
 func NewVM() *VM {
@@ -102,7 +103,7 @@ func (vm *VM) run() InterpretResult {
 			a := vm.peek(1)
 			if b := vm.peek(0); a.IsString() && b.IsString() {
 				b := vm.pop()
-				*a = value.NewObjString(a.AsString() + b.AsString())
+				*a = value.NewObjString(a.AsGoString() + b.AsGoString())
 			} else if a.IsNumber() && b.IsNumber() {
 				b := vm.pop()
 				*a = value.NewNumber(a.AsNumber() + b.AsNumber())
@@ -128,6 +129,7 @@ func (vm *VM) run() InterpretResult {
 				*val = value.NewNumber(-val.AsNumber())
 			}
 		case opcode.Return:
+			fmt.Printf("====%v====\n", vm.chunk.Constants.Count())
 			vm.pop().Print()
 			fmt.Printf("\n")
 			return INTERPRET_OK
