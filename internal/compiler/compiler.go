@@ -132,7 +132,7 @@ func (p *Parser) number() {
 }
 
 func (p *Parser) string() {
-	p.emitConstant(value.NewObjString(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
+	p.emitConstant(value.NewString(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
 }
 
 func (p *Parser) binary() {

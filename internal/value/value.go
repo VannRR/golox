@@ -2,176 +2,212 @@ package value
 
 import (
 	"fmt"
-	"golox/internal/obj-type"
-	"golox/internal/val-type"
 )
 
-type Obj struct {
-	Type objtype.ObjType
+type Value interface {
+	IsEqual(Value) bool
+	IsFalsey() bool
+	IsBool() bool
+	IsNil() bool
+	IsNumber() bool
+	IsString() bool
+	AsBool() bool
+	AsNumber() float64
+	AsString() string
+	Print()
 }
 
-type ObjString struct {
-	Obj
-	String string
-}
-
-type Value struct {
-	of   interface{}
-	Type valtype.ValType
-}
-
-func NewBool(v bool) Value {
-	return Value{
-		Type: valtype.Bool,
-		of:   v,
-	}
-}
+type NilVal struct{}
 
 func NewNil() Value {
-	return Value{
-		Type: valtype.Nil,
-	}
+	return NilVal{}
 }
 
-func NewNumber(v float64) Value {
-	return Value{
-		Type: valtype.Number,
-		of:   v,
-	}
+func (a NilVal) IsEqual(b Value) bool {
+	return b.IsNil()
 }
 
-func NewObjString(s string) Value {
-	return Value{
-		Type: valtype.Obj,
-		of: ObjString{
-			Obj: Obj{
-				Type: objtype.String,
-			},
-			String: s,
-		},
-	}
+func (n NilVal) IsFalsey() bool {
+	return true
 }
 
-func (v *Value) IsFalsey() bool {
-	switch v.Type {
-	case valtype.Nil:
-		return true
-	case valtype.Bool:
-		return v.of == false
-	default:
+func (n NilVal) IsNil() bool {
+	return true
+}
+
+func (n NilVal) IsBool() bool {
+	return false
+}
+
+func (n NilVal) IsNumber() bool {
+	return false
+}
+
+func (n NilVal) IsString() bool {
+	return false
+}
+
+func (n NilVal) AsBool() bool {
+	panic("Expected BoolVal, got NilVal")
+}
+
+func (n NilVal) AsNumber() float64 {
+	panic("Expected NumberVal, got NilVal")
+}
+
+func (n NilVal) AsString() string {
+	panic("Expected StringVal, got NilVal")
+}
+
+func (n NilVal) Print() {
+	fmt.Printf("nil")
+}
+
+type BoolVal bool
+
+func NewBool(b bool) Value {
+	return BoolVal(b)
+}
+
+func (a BoolVal) IsEqual(b Value) bool {
+	if !b.IsBool() {
 		return false
 	}
+	return a.AsBool() == b.AsBool()
 }
 
-func (v *Value) IsBool() bool {
-	return v.Type == valtype.Bool
+func (b BoolVal) IsFalsey() bool {
+	return !bool(b)
 }
 
-func (v *Value) IsNil() bool {
-	return v.Type == valtype.Nil
+func (b BoolVal) IsBool() bool {
+	return true
 }
 
-func (v *Value) IsNumber() bool {
-	return v.Type == valtype.Number
+func (b BoolVal) IsNil() bool {
+	return false
 }
 
-func (v *Value) IsObj() bool {
-	return v.Type == valtype.Obj
+func (b BoolVal) IsNumber() bool {
+	return false
 }
 
-func (v *Value) IsString() bool {
-	if v.Type != valtype.Obj {
+func (b BoolVal) IsString() bool {
+	return false
+}
+
+func (b BoolVal) AsBool() bool {
+	return bool(b)
+}
+
+func (b BoolVal) AsNumber() float64 {
+	panic("Expected NumberVal, got BoolVal")
+}
+
+func (b BoolVal) AsString() string {
+	panic("Expected StringVal, got BoolVal")
+}
+
+func (b BoolVal) Print() {
+	fmt.Printf("%v", b.AsBool())
+}
+
+type NumberVal float64
+
+func NewNumber(f float64) Value {
+	return NumberVal(f)
+}
+
+func (a NumberVal) IsEqual(b Value) bool {
+	if !b.IsNumber() {
 		return false
 	}
-	obj, ok := v.of.(ObjString)
-	if !ok {
+	return a.AsNumber() == b.AsNumber()
+}
+
+func (n NumberVal) IsFalsey() bool {
+	return false
+}
+
+func (n NumberVal) IsBool() bool {
+	return false
+}
+
+func (n NumberVal) IsNil() bool {
+	return false
+}
+
+func (n NumberVal) IsNumber() bool {
+	return true
+}
+
+func (n NumberVal) IsString() bool {
+	return false
+}
+
+func (n NumberVal) AsBool() bool {
+	panic("Expected BoolVal, got NumberVal")
+}
+
+func (n NumberVal) AsNumber() float64 {
+	return float64(n)
+}
+
+func (n NumberVal) AsString() string {
+	panic("Expected StringVal, got NumberVal")
+}
+
+func (n NumberVal) Print() {
+	fmt.Printf("%v", n.AsNumber())
+}
+
+type StringVal string
+
+func NewString(s string) Value {
+	return StringVal(s)
+}
+
+func (a StringVal) IsEqual(b Value) bool {
+	if !b.IsString() {
 		return false
 	}
-	return obj.Obj.Type == objtype.String
+	return a.AsString() == b.AsString()
 }
 
-func (v *Value) AsBool() bool {
-	if b, ok := v.of.(bool); ok {
-		return b
-	}
-	panic(fmt.Sprintf("expected bool, got '%T'", v.of))
+func (s StringVal) IsFalsey() bool {
+	return false
 }
 
-func (v *Value) AsNumber() float64 {
-	if n, ok := v.of.(float64); ok {
-		return n
-	}
-	panic(fmt.Sprintf("expected float64, got '%T'", v.of))
+func (s StringVal) IsBool() bool {
+	return false
 }
 
-func (v *Value) AsObj() Obj {
-	if o, ok := v.of.(Obj); ok {
-		return o
-	}
-	panic(fmt.Sprintf("expected Obj, got '%T'", v.of))
+func (s StringVal) IsNil() bool {
+	return false
 }
 
-func (v *Value) ObjType() objtype.ObjType {
-	switch obj := v.of.(type) {
-	case ObjString:
-		return objtype.String
-	default:
-		panic(fmt.Sprintf("unknown object type '%T'", obj))
-	}
+func (s StringVal) IsNumber() bool {
+	return false
 }
 
-func (v *Value) AsString() ObjString {
-	if s, ok := v.of.(ObjString); ok {
-		return s
-	}
-	panic(fmt.Sprintf("expected ObjString, got '%T'", v.of))
+func (s StringVal) IsString() bool {
+	return true
 }
 
-func (v *Value) AsGoString() string {
-	return v.AsString().String
+func (s StringVal) AsBool() bool {
+	panic("Expected BoolVal, got StringVal")
 }
 
-func (v Value) Print() {
-	switch v.Type {
-	case valtype.Bool:
-		fmt.Printf("%v", v.AsBool())
-	case valtype.Nil:
-		fmt.Print("nil")
-	case valtype.Number:
-		fmt.Printf("%v", v.AsNumber())
-	case valtype.Obj:
-		switch v.ObjType() {
-		case objtype.String:
-			fmt.Printf("%v", v.AsGoString())
-		default:
-			panic(fmt.Sprintf("cannot print unknown object type '%v'", v.ObjType()))
-		}
-	default:
-		panic(fmt.Sprintf("cannot print unknown type '%v'", v.Type))
-	}
+func (s StringVal) AsNumber() float64 {
+	panic("Expected NumberVal, got StringVal")
 }
 
-func (a *Value) IsEqual(b *Value) bool {
-	if a.Type != b.Type {
-		return false
-	}
-	switch a.Type {
-	case valtype.Bool:
-		return a.AsBool() == b.AsBool()
-	case valtype.Nil:
-		return true
-	case valtype.Number:
-		return a.AsNumber() == b.AsNumber()
-	case valtype.Obj:
-		switch a.ObjType() {
-		case objtype.String:
-			return a.AsGoString() == b.AsGoString()
-		default:
-			panic(fmt.Sprintf("cannot compare unknown object type '%v' as equal", a.ObjType()))
-		}
-	default:
-		panic(fmt.Sprintf("cannot compare unknown type '%v' as equal", a.Type))
-	}
+func (s StringVal) AsString() string {
+	return string(s)
+}
+
+func (s StringVal) Print() {
+	fmt.Printf("%v", s.AsString())
 }
 
 type ValueArray []Value
