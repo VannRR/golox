@@ -54,19 +54,33 @@ func (c *Chunk) Free() {
 	c.Constants.Free()
 }
 
-func (c *Chunk) WriteConstant(value value.Value, line uint16) (errMsg string, hasErr bool) {
-	if i := c.AddConstant(value); i <= maxConstantIndex {
-		c.Write(opcode.Constant, line)
-		c.Write(byte(i), line)
-	} else if i <= maxConstantLongIndex {
-		c.Write(opcode.ConstantLong, line)
-		c.Write(byte(i>>16), line)
-		c.Write(byte(i>>8), line)
-		c.Write(byte(i), line)
+func (c *Chunk) WriteDefineGlobalVar(index int, line uint16) {
+	c.writeLongWithCheck(index, opcode.DefineGlobal, line)
+}
+
+func (c *Chunk) WriteGetGlobalVar(index int, line uint16) {
+	c.writeLongWithCheck(index, opcode.GetGlobal, line)
+}
+
+func (c *Chunk) WriteConstant(value value.Value, line uint16) int {
+	index := c.AddConstant(value)
+	c.writeLongWithCheck(index, opcode.Constant, line)
+	return index
+}
+
+func (c *Chunk) writeLongWithCheck(index int, opcode byte, line uint16) {
+	if index <= maxConstantIndex {
+		c.Write(opcode, line)
+		c.Write(byte(index), line)
+	} else if index <= maxConstantLongIndex {
+		c.Write(opcode+1, line)
+		c.Write(byte(index>>16), line)
+		c.Write(byte(index>>8), line)
+		c.Write(byte(index), line)
 	} else {
-		return fmt.Sprintf("Too many constants (%d), must be less than 16,777,216", i), true
+		msg := fmt.Sprintf("Too many constants (%d), must be less than 16,777,216", index)
+		panic(msg)
 	}
-	return "", false
 }
 
 func (c *Chunk) Write(byte byte, line uint16) {

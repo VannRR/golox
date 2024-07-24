@@ -27,44 +27,16 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 	}
 
 	switch op := c.Code[offset]; op {
-	case opcode.Constant:
-		return constantInstruction("Constant", c, offset)
-	case opcode.ConstantLong:
-		return constantLongInstruction("ConstantLong", c, offset)
-	case opcode.Nil:
-		return simpleInstruction("Nil", offset)
-	case opcode.True:
-		return simpleInstruction("True", offset)
-	case opcode.False:
-		return simpleInstruction("False", offset)
-	case opcode.Equal:
-		return simpleInstruction("Equal", offset)
-	case opcode.NotEqual:
-		return simpleInstruction("NotEqual", offset)
-	case opcode.Greater:
-		return simpleInstruction("Greater", offset)
-	case opcode.GreaterEqual:
-		return simpleInstruction("GreaterEqual", offset)
-	case opcode.Less:
-		return simpleInstruction("Less", offset)
-	case opcode.LessEqual:
-		return simpleInstruction("LessEqual", offset)
-	case opcode.Add:
-		return simpleInstruction("Add", offset)
-	case opcode.Subtract:
-		return simpleInstruction("Subtract", offset)
-	case opcode.Multiply:
-		return simpleInstruction("Multiply", offset)
-	case opcode.Divide:
-		return simpleInstruction("Divide", offset)
-	case opcode.Not:
-		return simpleInstruction("Not", offset)
-	case opcode.Modulo:
-		return simpleInstruction("Modulo", offset)
-	case opcode.Negate:
-		return simpleInstruction("Negate", offset)
-	case opcode.Return:
-		return simpleInstruction("Return", offset)
+	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal:
+		return constantInstruction(opcode.Name(op), c, offset)
+	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong:
+		return constantLongInstruction(opcode.Name(op), c, offset)
+	case opcode.Nil, opcode.True, opcode.False, opcode.Pop,
+		opcode.Equal, opcode.NotEqual, opcode.Greater, opcode.GreaterEqual,
+		opcode.Less, opcode.LessEqual, opcode.Add, opcode.Subtract,
+		opcode.Multiply, opcode.Divide, opcode.Not, opcode.Modulo,
+		opcode.Negate, opcode.Print, opcode.Return:
+		return simpleInstruction(opcode.Name(op), offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", op)
 		return offset + 1
@@ -73,9 +45,7 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 
 func constantInstruction(name string, c *chunk.Chunk, offset int) int {
 	constantIndex := c.Code[offset+1]
-	fmt.Printf("%-16s %4d '", name, constantIndex)
-	c.Constants[constantIndex].Print()
-	fmt.Println("'")
+	fmt.Printf("%-16s %4d '%s'\n", name, constantIndex, c.Constants[constantIndex].Stringify())
 	return offset + 2
 }
 
@@ -83,9 +53,7 @@ func constantLongInstruction(name string, c *chunk.Chunk, offset int) int {
 	constantIndex := uint32(c.Code[offset+1]) << 16
 	constantIndex += uint32(c.Code[offset+2]) << 8
 	constantIndex += uint32(c.Code[offset+3])
-	fmt.Printf("%-16s %4d '", name, constantIndex)
-	c.Constants[constantIndex].Print()
-	fmt.Println("'")
+	fmt.Printf("%-16s %4d '%s'\n", name, constantIndex, c.Constants[constantIndex].Stringify())
 	return offset + 4
 }
 

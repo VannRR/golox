@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// add seperate int64 and float64 value types?
 type Value interface {
 	IsEqual(Value) bool
 	IsFalsey() bool
@@ -14,14 +15,10 @@ type Value interface {
 	AsBool() bool
 	AsNumber() float64
 	AsString() string
-	Print()
+	Stringify() string
 }
 
 type NilVal struct{}
-
-func NewNil() Value {
-	return NilVal{}
-}
 
 func (a NilVal) IsEqual(b Value) bool {
 	return b.IsNil()
@@ -59,15 +56,11 @@ func (n NilVal) AsString() string {
 	panic("Expected StringVal, got NilVal")
 }
 
-func (n NilVal) Print() {
-	fmt.Printf("nil")
+func (n NilVal) Stringify() string {
+	return "nil"
 }
 
 type BoolVal bool
-
-func NewBool(b bool) Value {
-	return BoolVal(b)
-}
 
 func (a BoolVal) IsEqual(b Value) bool {
 	if !b.IsBool() {
@@ -108,15 +101,15 @@ func (b BoolVal) AsString() string {
 	panic("Expected StringVal, got BoolVal")
 }
 
-func (b BoolVal) Print() {
-	fmt.Printf("%v", b.AsBool())
+func (b BoolVal) Stringify() string {
+	if b.AsBool() {
+		return "true"
+	} else {
+		return "false"
+	}
 }
 
 type NumberVal float64
-
-func NewNumber(f float64) Value {
-	return NumberVal(f)
-}
 
 func (a NumberVal) IsEqual(b Value) bool {
 	if !b.IsNumber() {
@@ -157,15 +150,11 @@ func (n NumberVal) AsString() string {
 	panic("Expected StringVal, got NumberVal")
 }
 
-func (n NumberVal) Print() {
-	fmt.Printf("%v", n.AsNumber())
+func (n NumberVal) Stringify() string {
+	return fmt.Sprintf("%v", n.AsNumber())
 }
 
 type StringVal string
-
-func NewString(s string) Value {
-	return StringVal(s)
-}
 
 func (a StringVal) IsEqual(b Value) bool {
 	if !b.IsString() {
@@ -206,8 +195,8 @@ func (s StringVal) AsString() string {
 	return string(s)
 }
 
-func (s StringVal) Print() {
-	fmt.Printf("%v", s.AsString())
+func (s StringVal) Stringify() string {
+	return s.AsString()
 }
 
 type ValueArray []Value

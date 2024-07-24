@@ -49,7 +49,7 @@ func init() {
 	rules[token.GreaterEqual] = ParseRule{nil, (*Parser).binary, PrecComparison}
 	rules[token.Less] = ParseRule{nil, (*Parser).binary, PrecComparison}
 	rules[token.LessEqual] = ParseRule{nil, (*Parser).binary, PrecComparison}
-	rules[token.Identifier] = ParseRule{nil, nil, PrecNone}
+	rules[token.Identifier] = ParseRule{(*Parser).variable, nil, PrecNone}
 	rules[token.String] = ParseRule{(*Parser).string, nil, PrecNone}
 	rules[token.Number] = ParseRule{(*Parser).number, nil, PrecNone}
 	rules[token.And] = ParseRule{nil, nil, PrecNone}
@@ -86,7 +86,7 @@ func getRule(tt token.TokenType) *ParseRule {
 }
 
 type Parser struct {
-	lexer     lexer.Lexer
+	lexer     *lexer.Lexer
 	chunk     *chunk.Chunk
 	current   token.Token
 	previous  token.Token
@@ -94,9 +94,9 @@ type Parser struct {
 	panicMode bool
 }
 
-func NewParser(source *[]byte, c *chunk.Chunk) *Parser {
+func NewParser(l *lexer.Lexer, c *chunk.Chunk) *Parser {
 	return &Parser{
-		lexer:     *lexer.NewLexer(source),
+		lexer:     l,
 		chunk:     c,
 		current:   token.Token{},
 		previous:  token.Token{},
@@ -106,12 +106,78 @@ func NewParser(source *[]byte, c *chunk.Chunk) *Parser {
 }
 
 func Compile(source *[]byte, c *chunk.Chunk) bool {
-	p := NewParser(source, c)
+	l := lexer.NewLexer(source)
+	p := NewParser(l, c)
 	p.advance()
-	p.expression()
-	p.consume(token.Eof, []byte("Expect end of expression."))
+	for !p.match(token.Eof) {
+		p.declaration()
+	}
 	p.endCompiler()
 	return !p.hadError
+}
+
+func (p *Parser) declaration() {
+	if p.match(token.Var) {
+		p.varDeclaration()
+	} else {
+		p.statement()
+	}
+
+	if p.panicMode {
+		p.synchronize()
+	}
+}
+
+func (p *Parser) statement() {
+	if p.match(token.Print) {
+		p.printStatement()
+	} else {
+		p.expressionStatement()
+	}
+}
+
+func (p *Parser) printStatement() {
+	p.expression()
+	p.consume(token.Semicolon, []byte("Expect ';' after value."))
+	p.emitByte(opcode.Print)
+}
+
+func (p *Parser) expressionStatement() {
+	p.expression()
+	p.consume(token.Semicolon, []byte("Expect ';' after expression."))
+	p.emitByte(opcode.Pop)
+}
+
+func (p *Parser) synchronize() {
+	p.panicMode = false
+
+	for p.current.Type != token.Eof {
+		if p.previous.Type == token.Semicolon {
+			return
+		}
+		switch p.current.Type {
+		case token.Class, token.Fun, token.Var, token.For,
+			token.If, token.While, token.Print, token.Return:
+			return
+		default:
+			// Do nothing
+		}
+		p.advance()
+	}
+}
+
+func (p *Parser) varDeclaration() {
+	global := p.parseVariable([]byte("Expect variable name."))
+
+	if p.match(token.Equal) {
+		p.expression()
+	} else {
+		p.emitByte(opcode.Nil)
+	}
+	p.consume(token.Semicolon,
+		[]byte("Expect ';' after variable declaration."))
+
+	p.defineVariable(global)
 }
 
 func (p *Parser) expression() {
@@ -128,11 +194,20 @@ func (p *Parser) number() {
 	if err != nil {
 		panic(err)
 	}
-	p.emitConstant(value.NewNumber(v))
+	p.emitConstant(value.NumberVal(v))
+}
+
+func (p *Parser) variable() {
+	p.namedVariable(p.previous)
+}
+
+func (p *Parser) namedVariable(name token.Token) {
+	arg := p.identifierConstant(&name)
+	p.chunk.WriteGetGlobalVar(arg, p.previous.Line)
 }
 
 func (p *Parser) string() {
-	p.emitConstant(value.NewString(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
+	p.emitConstant(value.StringVal(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
 }
 
 func (p *Parser) binary() {
@@ -214,6 +289,19 @@ func (p *Parser) parsePrecedence(precedence Precedence) {
 	}
 }
 
+func (p *Parser) parseVariable(errorMessage []byte) int {
+	p.consume(token.Identifier, errorMessage)
+	return p.identifierConstant(&p.previous)
+}
+
+func (p *Parser) identifierConstant(name *token.Token) int {
+	return p.chunk.WriteConstant(value.StringVal(string(name.Lexeme)), p.previous.Line)
+}
+
+func (p *Parser) defineVariable(global int) {
+	p.chunk.WriteDefineGlobalVar(global, p.previous.Line)
+}
+
 func (p *Parser) error(message []byte) {
 	p.errorAt(&p.previous, message)
 }
@@ -239,6 +327,18 @@ func (p *Parser) errorAt(t *token.Token, message []byte) {
 
 	fmt.Fprintf(os.Stderr, ": %s\n", string(message))
 	p.hadError = true
+}
+
+func (p *Parser) match(tt token.TokenType) bool {
+	if !p.check(tt) {
+		return false
+	}
+	p.advance()
+	return true
+}
+
+func (p *Parser) check(tt token.TokenType) bool {
+	return p.current.Type == tt
 }
 
 func (p *Parser) advance() {
@@ -273,10 +373,7 @@ func (p *Parser) emitReturn() {
 }
 
 func (p *Parser) emitConstant(v value.Value) {
-	errMsg, hasErr := p.chunk.WriteConstant(v, p.previous.Line)
-	if hasErr {
-		p.error([]byte(errMsg))
-	}
+	p.chunk.WriteConstant(v, p.previous.Line)
 }
 
 func (p *Parser) emitBytes(byte1 byte, byte2 byte) {

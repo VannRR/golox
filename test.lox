@@ -1,0 +1,9 @@
+var beverage = "cafe au lait";
+var breakfast = "beignets with " + beverage;
+print breakfast;
+print "beignets with cafe au lait";
+
+var five = 5;
+var two = 7 - five;
+print two;
+print 2;

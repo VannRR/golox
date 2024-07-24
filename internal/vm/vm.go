@@ -26,6 +26,7 @@ type VM struct {
 	chunk    *chunk.Chunk
 	ip       int
 	stackTop int
+	globals  map[string]value.Value
 }
 
 func NewVM() *VM {
@@ -60,6 +61,7 @@ func (vm *VM) Interpret(source *[]byte) InterpretResult {
 
 	vm.chunk = c
 	vm.ip = 0
+	vm.globals = make(map[string]value.Value)
 
 	result := vm.run()
 
@@ -72,9 +74,7 @@ func (vm *VM) run() InterpretResult {
 		if debug.TraceExecution {
 			fmt.Printf("          ")
 			for slot := 0; slot < vm.stackTop; slot++ {
-				fmt.Printf("[ ")
-				vm.stack[slot].Print()
-				fmt.Printf(" ]")
+				fmt.Printf("[ %s ]", vm.stack[slot].Stringify())
 			}
 			fmt.Printf("\n")
 			debug.DisassembleInstruction(vm.chunk, vm.ip)
@@ -85,30 +85,45 @@ func (vm *VM) run() InterpretResult {
 			constant := vm.readConstant()
 			vm.push(constant)
 		case opcode.Nil:
-			vm.push(value.NewNil())
+			vm.push(value.NilVal{})
 		case opcode.True:
-			vm.push(value.NewBool(true))
+			vm.push(value.BoolVal(true))
 		case opcode.False:
-			vm.push(value.NewBool(false))
+			vm.push(value.BoolVal(false))
+		case opcode.Pop:
+			vm.pop()
+		case opcode.GetGlobal, opcode.GetGlobalLong:
+			name := vm.readConstant().AsString()
+			value, exists := vm.globals[name]
+			vm.pop()
+			if !exists {
+				vm.runtimeError("Undefined variable '%s'.", name)
+				return INTERPRET_RUNTIME_ERROR
+			}
+			vm.push(value)
+		case opcode.DefineGlobal, opcode.DefineGlobalLong:
+			name := vm.readConstant().AsString()
+			vm.globals[name] = vm.peek(0)
+			vm.pop()
 		case opcode.Equal:
 			b := vm.pop()
 			a := vm.pop()
-			vm.push(value.NewBool((a.IsEqual(b))))
+			vm.push(value.BoolVal((a.IsEqual(b))))
 		case opcode.NotEqual:
 			b := vm.pop()
 			a := vm.pop()
-			vm.push(value.NewBool((!a.IsEqual(b))))
+			vm.push(value.BoolVal((!a.IsEqual(b))))
 		case opcode.Add:
 			a := vm.peek(1)
 			b := vm.peek(0)
 			if a.IsString() && b.IsString() {
 				b := vm.pop()
 				a := vm.pop()
-				vm.push(value.NewString(a.AsString() + b.AsString()))
+				vm.push(value.StringVal(a.AsString() + b.AsString()))
 			} else if a.IsNumber() && b.IsNumber() {
 				b := vm.pop()
 				a := vm.pop()
-				vm.push(value.NewNumber(a.AsNumber() + b.AsNumber()))
+				vm.push(value.NumberVal(a.AsNumber() + b.AsNumber()))
 			} else {
 				vm.runtimeError(
 					"Operands must be two numbers or two strings.")
@@ -122,18 +137,18 @@ func (vm *VM) run() InterpretResult {
 			}
 		case opcode.Not:
 			val := vm.pop()
-			vm.push(value.NewBool(val.IsFalsey()))
+			vm.push(value.BoolVal(val.IsFalsey()))
 		case opcode.Negate:
 			if val := vm.peek(0); !val.IsNumber() {
 				vm.runtimeError("Operand must be a number.")
 				return INTERPRET_RUNTIME_ERROR
 			} else {
 				val := vm.pop()
-				vm.push(value.NewNumber(-val.AsNumber()))
+				vm.push(value.NumberVal(-val.AsNumber()))
 			}
+		case opcode.Print:
+			fmt.Printf("%s\n", vm.pop().Stringify())
 		case opcode.Return:
-			vm.pop().Print()
-			fmt.Printf("\n")
 			return INTERPRET_OK
 		default:
 			err := fmt.Sprintf("Unknown instruction %v", instruction)
@@ -162,23 +177,23 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 
 	switch operator {
 	case opcode.Greater:
-		vm.push(value.NewBool(a.AsNumber() > b.AsNumber()))
+		vm.push(value.BoolVal(a.AsNumber() > b.AsNumber()))
 	case opcode.GreaterEqual:
-		vm.push(value.NewBool(a.AsNumber() >= b.AsNumber()))
+		vm.push(value.BoolVal(a.AsNumber() >= b.AsNumber()))
 	case opcode.Less:
-		vm.push(value.NewBool(a.AsNumber() < b.AsNumber()))
+		vm.push(value.BoolVal(a.AsNumber() < b.AsNumber()))
 	case opcode.LessEqual:
-		vm.push(value.NewBool(a.AsNumber() <= b.AsNumber()))
+		vm.push(value.BoolVal(a.AsNumber() <= b.AsNumber()))
 	//case opcode.Add:
-	//	vm.push(value.NewNumber(a.AsNumber() + b.AsNumber()))
+	//	vm.push(value.NumberVal(a.AsNumber() + b.AsNumber()))
 	case opcode.Subtract:
-		vm.push(value.NewNumber(a.AsNumber() - b.AsNumber()))
+		vm.push(value.NumberVal(a.AsNumber() - b.AsNumber()))
 	case opcode.Multiply:
-		vm.push(value.NewNumber(a.AsNumber() * b.AsNumber()))
+		vm.push(value.NumberVal(a.AsNumber() * b.AsNumber()))
 	case opcode.Divide:
-		vm.push(value.NewNumber(a.AsNumber() / b.AsNumber()))
+		vm.push(value.NumberVal(a.AsNumber() / b.AsNumber()))
 	case opcode.Modulo:
-		vm.push(value.NewNumber(float64(int(a.AsNumber()) % int(b.AsNumber()))))
+		vm.push(value.NumberVal(float64(int(a.AsNumber()) % int(b.AsNumber()))))
 	default:
 		err := fmt.Sprintf("Invalid binary operator %v", operator)
 		panic(err)
