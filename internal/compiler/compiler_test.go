@@ -426,43 +426,88 @@ func Test_error(t *testing.T) {
 }
 
 func Test_match(t *testing.T) {
-	p := setupParserForTest("wow")
+	p := setupParserForTest("123")
 
-	p.current = p.lexer.ScanToken()
+	numberToken := p.lexer.ScanToken()
 
-	p.error([]byte("this is a test error msg"))
+	p.current = numberToken
 
-	if p.panicMode != false {
-		t.Error("TODO: add test for match method")
+	if p.match(token.Number) != true {
+		t.Error("Expected token to match type Number")
+	}
+
+	p.current = numberToken
+
+	if p.match(token.Nil) != false {
+		t.Error("Expected token to not match type Nil")
+	}
+
+}
+
+func Test_advance(t *testing.T) {
+	input := "123"
+	p := setupParserForTest(input)
+
+	p.advance()
+
+	if string(p.previous.Lexeme) != "" {
+		t.Error("Expected previous token Lexeme to be ''/(blank).")
+	}
+
+	if string(p.current.Lexeme) != input {
+		t.Errorf("Expected current token Lexeme to be '%v'.", input)
+	}
+
+	p.advance()
+
+	if string(p.previous.Lexeme) != input {
+		t.Errorf("Expected previous token Lexeme to be '%v'.", input)
 	}
 }
 
-func checkOpcodes(t *testing.T, got []byte, expected []byte) {
-	t.Helper()
+func Test_consume(t *testing.T) {
+	input := "123"
+	msg := []byte("test error")
+	p := setupParserForTest(input)
 
-	gotLen := len(got)
-	expectedLen := len(expected)
+	p.current = p.lexer.ScanToken()
 
-	if gotLen != expectedLen {
-		t.Fatalf("Expected byte code slice with length '%v', got '%v'.", expectedLen, gotLen)
+	p.consume(token.Number, msg)
+
+	if string(p.previous.Lexeme) != input {
+		t.Errorf("Expected current token Lexeme to be '%v'.", input)
 	}
 
-	for i := 0; i < gotLen; i++ {
-		switch expected[i] {
-		case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal:
-			if got[i] != expected[i] {
-				t.Errorf("Expected opcode '%v' at index %v, got '%v'.", opcode.Name(expected[i]), i, opcode.Name(got[i]))
-			}
-			i++
-			if got[i] != expected[i] {
-				t.Errorf("Expected constant index '%v', got '%v'.", expected[i], got[i])
-			}
-		default:
-			if got[i] != expected[i] {
-				t.Errorf("Expected opcode '%v' at index %v, got '%v'.", opcode.Name(expected[i]), i, opcode.Name(got[i]))
-			}
-		}
+	p = setupParserForTest(input)
+
+	p.current = p.lexer.ScanToken()
+
+	p.consume(token.Nil, msg)
+
+	if p.hadError != true {
+		t.Error("Expected error to trigger for non matching token type.")
 	}
+
+}
+
+func Test_emitConstant(t *testing.T) {
+	p := setupParserForTest("")
+
+	con := value.NumberVal(123)
+
+	p.emitConstant(con)
+
+	checkConstants(t, p.chunk.Constants, []value.Value{con})
+}
+
+func Test_emitByte(t *testing.T) {
+	p := setupParserForTest("")
+
+	op := opcode.Add
+
+	p.emitByte(op)
+
+	checkOpcodes(t, p.chunk.Code, []byte{op})
 }
 
 func setupParserForTest(source string) *Parser {
@@ -472,10 +517,38 @@ func setupParserForTest(source string) *Parser {
 	return NewParser(l, c)
 }
 
-func checkConstants(t *testing.T, got []value.Value, expected []value.Value) {
+func checkOpcodes(t *testing.T, actual []byte, expected []byte) {
 	t.Helper()
 
-	gotLen := len(got)
+	gotLen := len(actual)
+	expectedLen := len(expected)
+
+	if gotLen != expectedLen {
+		t.Fatalf("Expected byte code slice with length '%v', got '%v'.", expectedLen, gotLen)
+	}
+
+	for i := 0; i < gotLen; i++ {
+		switch expected[i] {
+		case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal:
+			if actual[i] != expected[i] {
+				t.Errorf("Expected opcode '%v' at index %v, got '%v'.", opcode.Name(expected[i]), i, opcode.Name(actual[i]))
+			}
+			i++
+			if actual[i] != expected[i] {
+				t.Errorf("Expected constant index '%v', got '%v'.", expected[i], actual[i])
+			}
+		default:
+			if actual[i] != expected[i] {
+				t.Errorf("Expected opcode '%v' at index %v, got '%v'.", opcode.Name(expected[i]), i, opcode.Name(actual[i]))
+			}
+		}
+	}
+}
+
+func checkConstants(t *testing.T, actual []value.Value, expected []value.Value) {
+	t.Helper()
+
+	gotLen := len(actual)
 	expectedLen := len(expected)
 
 	if gotLen != expectedLen {
@@ -483,7 +556,7 @@ func checkConstants(t *testing.T, got []value.Value, expected []value.Value) {
 	}
 
 	for i := 0; i < gotLen; i++ {
-		constant := got[i]
+		constant := actual[i]
 		expectedConstant := expected[i]
 		if constant != expectedConstant {
 			t.Errorf("Expected constant '%v' at index %v, got '%v'.", expectedConstant, i, constant)

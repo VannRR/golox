@@ -4,7 +4,6 @@ import (
 	"fmt"
 )
 
-// add seperate int64 and float64 value types?
 type Value interface {
 	IsEqual(Value) bool
 	IsFalsey() bool

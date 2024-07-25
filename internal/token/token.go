@@ -59,6 +59,6 @@ type Token struct {
 	Line   uint16
 }
 
-func (t Token) String() string {
+func (t Token) Stringify() string {
 	return fmt.Sprintf("Type: %v, Lexeme: %s, Line: %d", t.Type, t.Lexeme, t.Line)
 }

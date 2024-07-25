@@ -368,6 +368,7 @@ func (p *Parser) endCompiler() {
 		debug.DisassembleChunk(p.chunk, "code")
 	}
 }
+
 func (p *Parser) emitReturn() {
 	p.emitByte(opcode.Return)
 }
