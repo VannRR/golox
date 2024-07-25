@@ -33,10 +33,6 @@ func NewVM() *VM {
 	return &VM{}
 }
 
-func (vm *VM) Free() {
-	// Implement cleanup logic
-}
-
 func (vm *VM) push(value value.Value) {
 	vm.stack[vm.stackTop] = value
 	vm.stackTop++

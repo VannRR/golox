@@ -19,8 +19,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: golox [path]\n")
 		os.Exit(64)
 	}
-
-	vm.Free()
 }
 
 func repl(v *vm.VM) {

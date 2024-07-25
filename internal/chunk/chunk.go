@@ -16,14 +16,14 @@ type LineInfo struct {
 
 type Chunk struct {
 	Code      []byte
-	LineInfo  []LineInfo
+	lineInfo  []LineInfo
 	Constants value.ValueArray
 }
 
 func NewChunk() *Chunk {
 	return &Chunk{
 		Code:      make([]byte, 0),
-		LineInfo:  make([]LineInfo, 0),
+		lineInfo:  make([]LineInfo, 0),
 		Constants: value.NewValueArray(),
 	}
 }
@@ -38,7 +38,7 @@ func (c *Chunk) GetLine(codeIndex int) uint16 {
 	}
 
 	var cumulativeIndex uint16 = 0
-	for _, l := range c.LineInfo {
+	for _, l := range c.lineInfo {
 		cumulativeIndex += l.count
 		if cumulativeIndex > uint16(codeIndex) {
 			return l.line
@@ -50,7 +50,7 @@ func (c *Chunk) GetLine(codeIndex int) uint16 {
 
 func (c *Chunk) Free() {
 	c.Code = c.Code[:0]
-	c.LineInfo = c.LineInfo[:0]
+	c.lineInfo = c.lineInfo[:0]
 	c.Constants.Free()
 }
 
@@ -90,9 +90,9 @@ func (c *Chunk) AddConstant(value value.Value) int {
 
 func (c *Chunk) Write(byte byte, line uint16) {
 	c.Code = append(c.Code, byte)
-	if last := len(c.LineInfo) - 1; len(c.LineInfo) == 0 || c.LineInfo[last].line != line {
-		c.LineInfo = append(c.LineInfo, LineInfo{line: line, count: 1})
+	if last := len(c.lineInfo) - 1; len(c.lineInfo) == 0 || c.lineInfo[last].line != line {
+		c.lineInfo = append(c.lineInfo, LineInfo{line: line, count: 1})
 	} else {
-		c.LineInfo[last].count++
+		c.lineInfo[last].count++
 	}
 }
