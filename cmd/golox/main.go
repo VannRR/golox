@@ -36,10 +36,10 @@ func runFile(v *vm.VM, path string) {
 	source := readFile(path)
 	result := v.Interpret(source)
 
-	if result == vm.INTERPRET_COMPILE_ERROR {
+	if result == vm.InterpretCompileError {
 		os.Exit(65)
 	}
-	if result == vm.INTERPRET_RUNTIME_ERROR {
+	if result == vm.InterpretRuntimeError {
 		os.Exit(70)
 	}
 }

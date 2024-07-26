@@ -13,10 +13,10 @@ import (
 type InterpretResult = uint8
 
 const (
-	INTERPRET_OK InterpretResult = iota
-	INTERPRET_COMPILE_ERROR
-	INTERPRET_RUNTIME_ERROR
-	INTERPRET_NO_RESULT
+	InterpretOk InterpretResult = iota
+	InterpretCompileError
+	InterpretRuntimeError
+	InterpretNoResult
 )
 
 const STACK_MAX int = 256
@@ -52,7 +52,7 @@ func (vm *VM) Interpret(source *[]byte) InterpretResult {
 
 	if !compiler.Compile(source, c) {
 		c.Free()
-		return INTERPRET_COMPILE_ERROR
+		return InterpretCompileError
 	}
 
 	vm.chunk = c
@@ -94,7 +94,7 @@ func (vm *VM) run() InterpretResult {
 			vm.pop()
 			if !exists {
 				vm.runtimeError("Undefined variable '%s'.", name)
-				return INTERPRET_RUNTIME_ERROR
+				return InterpretRuntimeError
 			}
 			vm.push(value)
 		case opcode.DefineGlobal, opcode.DefineGlobalLong:
@@ -123,12 +123,12 @@ func (vm *VM) run() InterpretResult {
 			} else {
 				vm.runtimeError(
 					"Operands must be two numbers or two strings.")
-				return INTERPRET_RUNTIME_ERROR
+				return InterpretRuntimeError
 			}
 		case opcode.Greater, opcode.GreaterEqual, opcode.Less, opcode.LessEqual,
 			opcode.Subtract, opcode.Multiply, opcode.Divide, opcode.Modulo:
 			result := vm.binaryOP(instruction)
-			if result != INTERPRET_NO_RESULT {
+			if result != InterpretNoResult {
 				return result
 			}
 		case opcode.Not:
@@ -137,7 +137,7 @@ func (vm *VM) run() InterpretResult {
 		case opcode.Negate:
 			if val := vm.peek(0); !val.IsNumber() {
 				vm.runtimeError("Operand must be a number.")
-				return INTERPRET_RUNTIME_ERROR
+				return InterpretRuntimeError
 			} else {
 				val := vm.pop()
 				vm.push(value.NumberVal(-val.AsNumber()))
@@ -145,7 +145,7 @@ func (vm *VM) run() InterpretResult {
 		case opcode.Print:
 			fmt.Printf("%s\n", vm.pop().Stringify())
 		case opcode.Return:
-			return INTERPRET_OK
+			return InterpretOk
 		default:
 			err := fmt.Sprintf("Unknown instruction %v", instruction)
 			panic(err)
@@ -165,7 +165,7 @@ func (vm *VM) readConstant() value.Value {
 func (vm *VM) binaryOP(operator byte) InterpretResult {
 	if !vm.peek(0).IsNumber() || !vm.peek(1).IsNumber() {
 		vm.runtimeError("Operands must be numbers.")
-		return INTERPRET_RUNTIME_ERROR
+		return InterpretRuntimeError
 	}
 
 	b := vm.pop()
@@ -180,8 +180,6 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 		vm.push(value.BoolVal(a.AsNumber() < b.AsNumber()))
 	case opcode.LessEqual:
 		vm.push(value.BoolVal(a.AsNumber() <= b.AsNumber()))
-	//case opcode.Add:
-	//	vm.push(value.NumberVal(a.AsNumber() + b.AsNumber()))
 	case opcode.Subtract:
 		vm.push(value.NumberVal(a.AsNumber() - b.AsNumber()))
 	case opcode.Multiply:
@@ -195,7 +193,7 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 		panic(err)
 	}
 
-	return INTERPRET_NO_RESULT
+	return InterpretNoResult
 }
 
 func (vm *VM) runtimeError(format string, args ...interface{}) {
