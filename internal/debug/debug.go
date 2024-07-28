@@ -27,9 +27,9 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 	}
 
 	switch op := c.Code[offset]; op {
-	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal:
+	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal, opcode.SetGlobal:
 		return constantInstruction(opcode.Name(op), c, offset)
-	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong:
+	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong, opcode.SetGlobalLong:
 		return constantLongInstruction(opcode.Name(op), c, offset)
 	case opcode.Nil, opcode.True, opcode.False, opcode.Pop,
 		opcode.Equal, opcode.NotEqual, opcode.Greater, opcode.GreaterEqual,

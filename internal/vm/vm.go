@@ -101,6 +101,15 @@ func (vm *VM) run() InterpretResult {
 			name := vm.readConstant().AsString()
 			vm.globals[name] = vm.peek(0)
 			vm.pop()
+		case opcode.SetGlobal, opcode.SetGlobalLong:
+			name := vm.readConstant().AsString()
+			_, exists := vm.globals[name]
+			if exists {
+				vm.globals[name] = vm.peek(0)
+			} else {
+				vm.runtimeError("Undefined variable '%s'.", name)
+				return InterpretRuntimeError
+			}
 		case opcode.Equal:
 			b := vm.pop()
 			a := vm.pop()
@@ -154,8 +163,8 @@ func (vm *VM) run() InterpretResult {
 }
 
 func (vm *VM) readByte() byte {
-	defer func() { vm.ip++ }()
-	return vm.chunk.Code[vm.ip]
+	vm.ip++
+	return vm.chunk.Code[vm.ip-1]
 }
 
 func (vm *VM) readConstant() value.Value {

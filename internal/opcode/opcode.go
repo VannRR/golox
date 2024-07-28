@@ -11,6 +11,8 @@ const (
 	GetGlobalLong
 	DefineGlobal
 	DefineGlobalLong
+	SetGlobal
+	SetGlobalLong
 	Equal
 	NotEqual
 	Greater
@@ -50,6 +52,10 @@ func Name(op byte) string {
 		return "OpDefineGlobal"
 	case DefineGlobalLong:
 		return "OpDefineGlobalLong"
+	case SetGlobal:
+		return "OpSetGlobal"
+	case SetGlobalLong:
+		return "OpSetGlobalLong"
 	case Equal:
 		return "OpEqual"
 	case NotEqual:

@@ -72,7 +72,7 @@ func init() {
 	rules[token.Eof] = ParseRule{nil, nil, PrecNone}
 }
 
-type ParseFn = func(*Parser)
+type ParseFn = func(*Parser, bool)
 type Precedence = uint8
 
 type ParseRule struct {
@@ -184,12 +184,12 @@ func (p *Parser) expression() {
 	p.parsePrecedence(PrecAssignment)
 }
 
-func (p *Parser) grouping() {
+func (p *Parser) grouping(canAssign bool) {
 	p.expression()
 	p.consume(token.RightParen, []byte("Expect ')' after expression."))
 }
 
-func (p *Parser) number() {
+func (p *Parser) number(canAssign bool) {
 	v, err := strconv.ParseFloat(string(p.previous.Lexeme), 64)
 	if err != nil {
 		panic(err)
@@ -197,20 +197,25 @@ func (p *Parser) number() {
 	p.emitConstant(value.NumberVal(v))
 }
 
-func (p *Parser) variable() {
-	p.namedVariable(p.previous)
+func (p *Parser) variable(canAssign bool) {
+	p.namedVariable(p.previous, canAssign)
 }
 
-func (p *Parser) namedVariable(name token.Token) {
-	arg := p.identifierConstant(&name)
-	p.chunk.WriteGetGlobalVar(arg, p.previous.Line)
+func (p *Parser) namedVariable(name token.Token, canAssign bool) {
+	index := p.identifierConstant(&name)
+	if canAssign && p.match(token.Equal) {
+		p.expression()
+		p.chunk.WriteIndexWithCheck(index, opcode.SetGlobal, p.previous.Line)
+	} else {
+		p.chunk.WriteIndexWithCheck(index, opcode.GetGlobal, p.previous.Line)
+	}
 }
 
-func (p *Parser) string() {
+func (p *Parser) string(canAssign bool) {
 	p.emitConstant(value.StringVal(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
 }
 
-func (p *Parser) binary() {
+func (p *Parser) binary(canAssign bool) {
 	operatorType := p.previous.Type
 	rule := getRule(operatorType)
 	p.parsePrecedence(Precedence(rule.precedence + 1))
@@ -243,7 +248,7 @@ func (p *Parser) binary() {
 	}
 }
 
-func (p *Parser) literal() {
+func (p *Parser) literal(canAssign bool) {
 	switch p.previous.Type {
 	case token.False:
 		p.emitByte(opcode.False)
@@ -256,7 +261,7 @@ func (p *Parser) literal() {
 	}
 }
 
-func (p *Parser) unary() {
+func (p *Parser) unary(canAssign bool) {
 	operatorType := p.previous.Type
 
 	p.parsePrecedence(PrecUnary)
@@ -280,12 +285,17 @@ func (p *Parser) parsePrecedence(precedence Precedence) {
 		return
 	}
 
-	prefixRule(p)
+	canAssign := precedence <= PrecAssignment
+	prefixRule(p, canAssign)
 
 	for precedence <= getRule(p.current.Type).precedence {
 		p.advance()
 		infixRule := getRule(p.previous.Type).infix
-		infixRule(p)
+		infixRule(p, canAssign)
+	}
+
+	if canAssign && p.match(token.Equal) {
+		p.error([]byte("Invalid assignment target."))
 	}
 }
 
@@ -299,7 +309,7 @@ func (p *Parser) identifierConstant(name *token.Token) int {
 }
 
 func (p *Parser) defineVariable(global int) {
-	p.chunk.WriteDefineGlobalVar(global, p.previous.Line)
+	p.chunk.WriteIndexWithCheck(global, opcode.DefineGlobal, p.previous.Line)
 }
 
 func (p *Parser) error(message []byte) {

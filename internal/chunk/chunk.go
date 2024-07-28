@@ -54,21 +54,13 @@ func (c *Chunk) Free() {
 	c.Constants.Free()
 }
 
-func (c *Chunk) WriteDefineGlobalVar(index int, line uint16) {
-	c.writeLongWithCheck(index, opcode.DefineGlobal, line)
-}
-
-func (c *Chunk) WriteGetGlobalVar(index int, line uint16) {
-	c.writeLongWithCheck(index, opcode.GetGlobal, line)
-}
-
 func (c *Chunk) WriteConstant(value value.Value, line uint16) int {
 	index := c.AddConstant(value)
-	c.writeLongWithCheck(index, opcode.Constant, line)
+	c.WriteIndexWithCheck(index, opcode.Constant, line)
 	return index
 }
 
-func (c *Chunk) writeLongWithCheck(index int, opcode byte, line uint16) {
+func (c *Chunk) WriteIndexWithCheck(index int, opcode byte, line uint16) {
 	if index <= maxConstantIndex {
 		c.Write(opcode, line)
 		c.Write(byte(index), line)

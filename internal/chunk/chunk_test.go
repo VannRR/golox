@@ -47,32 +47,16 @@ func Test_Free(t *testing.T) {
 	}
 }
 
-func Test_WriteDefineGlobalVar(t *testing.T) {
+func Test_WriteIndexWithCheck(t *testing.T) {
 	ch := NewChunk()
 	globalVar := value.NumberVal(420)
 	var line uint16 = 123
 	index := ch.WriteConstant(globalVar, line)
-	ch.WriteDefineGlobalVar(index, line)
+	ch.WriteIndexWithCheck(index, opcode.DefineGlobal, line)
 
 	expectCodeCount(t, ch, 4)
 
 	expectOpCodeAtIndex(t, ch, opcode.DefineGlobal, 2)
-
-	expectConstantCount(t, ch, 1)
-
-	expectConstantAtIndex(t, ch, globalVar, index)
-}
-
-func Test_WriteGetGlobalVar(t *testing.T) {
-	ch := NewChunk()
-	globalVar := value.NumberVal(21)
-	var line uint16 = 123
-	index := ch.WriteConstant(globalVar, line)
-	ch.WriteGetGlobalVar(index, line)
-
-	expectCodeCount(t, ch, 4)
-
-	expectOpCodeAtIndex(t, ch, opcode.GetGlobal, 2)
 
 	expectConstantCount(t, ch, 1)
 

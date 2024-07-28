@@ -170,7 +170,7 @@ func Test_expression(t *testing.T) {
 func Test_grouping(t *testing.T) {
 	p := setupParserForTest("(1 + 2)")
 
-	p.grouping()
+	p.grouping(false)
 
 	expectedOpcodes := []byte{
 		opcode.Constant, 0,
@@ -193,7 +193,7 @@ func Test_number(t *testing.T) {
 	p := setupParserForTest("")
 	p.previous.Lexeme = []byte(fmt.Sprint(input))
 
-	p.number()
+	p.number(false)
 
 	expectedOpcodes := []byte{
 		opcode.Constant, 0,
@@ -208,35 +208,70 @@ func Test_number(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
-func Test_variable(t *testing.T) {
-	input := "wow"
-	s := []byte(input)
-	l := lexer.NewLexer(&s)
+func Test_variable_get(t *testing.T) {
+	s := []byte(`var wow = 1; var foo = wow + 1;`)
 	c := chunk.NewChunk()
-	p := NewParser(l, c)
-	p.previous = l.ScanToken()
-
-	p.variable()
+	Compile(&s, c)
 
 	expectedOpcodes := []byte{
 		opcode.Constant, 0,
-		opcode.GetGlobal, 0,
+		opcode.Constant, 1,
+		opcode.DefineGlobal, 0,
+		opcode.Constant, 2,
+		opcode.Constant, 3,
+		opcode.GetGlobal, 3,
+		opcode.Constant, 4,
+		opcode.Add,
+		opcode.DefineGlobal, 2,
+		opcode.Return,
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal(input),
+		value.StringVal("wow"),
+		value.NumberVal(1),
+		value.StringVal("foo"),
+		value.StringVal("wow"),
+		value.NumberVal(1),
 	}
 
-	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+	checkOpcodes(t, c.Code, expectedOpcodes)
 
-	checkConstants(t, p.chunk.Constants, expectedConstants)
+	checkConstants(t, c.Constants, expectedConstants)
+}
+
+func Test_variable_set(t *testing.T) {
+	s := []byte(`var wow = 1; wow = 2;`)
+	c := chunk.NewChunk()
+	Compile(&s, c)
+
+	expectedOpcodes := []byte{
+		opcode.Constant, 0,
+		opcode.Constant, 1,
+		opcode.DefineGlobal, 0,
+		opcode.Constant, 2,
+		opcode.Constant, 3,
+		opcode.SetGlobal, 2,
+		opcode.Pop,
+		opcode.Return,
+	}
+
+	expectedConstants := []value.Value{
+		value.StringVal("wow"),
+		value.NumberVal(1),
+		value.StringVal("wow"),
+		value.NumberVal(2),
+	}
+
+	checkOpcodes(t, c.Code, expectedOpcodes)
+
+	checkConstants(t, c.Constants, expectedConstants)
 }
 
 func Test_string(t *testing.T) {
 	p := setupParserForTest("")
 	p.previous.Lexeme = []byte("\"wow\"")
 
-	p.string()
+	p.string(false)
 
 	expectedOpcodes := []byte{
 		opcode.Constant, 0,
@@ -275,7 +310,7 @@ func Test_binary(t *testing.T) {
 
 		p.previous.Type = pair.t
 
-		p.binary()
+		p.binary(false)
 
 		expectedOpcodes := []byte{
 			pair.b,
@@ -305,7 +340,7 @@ func Test_literal(t *testing.T) {
 
 		p.previous.Type = pair.t
 
-		p.literal()
+		p.literal(false)
 
 		expectedOpcodes := []byte{
 			pair.b,
@@ -334,7 +369,7 @@ func Test_unary(t *testing.T) {
 
 		p.previous.Type = pair.t
 
-		p.unary()
+		p.unary(false)
 
 		expectedOpcodes := []byte{
 			pair.b,

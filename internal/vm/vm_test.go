@@ -100,6 +100,12 @@ func Test_run(t *testing.T) {
 			expected: InterpretOk,
 		},
 		{
+			name:     "define and set global",
+			source:   "var global = 123; global = 321;",
+			expected: InterpretOk,
+		},
+
+		{
 			name:     "equal",
 			source:   "123 == 123;",
 			expected: InterpretOk,
