@@ -197,7 +197,7 @@ func Test_readConstant(t *testing.T) {
 	}
 
 	expected := value.NumberVal(42)
-	actual := vm.readConstant()
+	actual := vm.readConstant(opcode.Constant)
 
 	if actual != expected {
 		t.Errorf("Expected %v, but got %v", expected, actual)

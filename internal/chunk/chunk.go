@@ -2,11 +2,10 @@ package chunk
 
 import (
 	"fmt"
-	"golox/internal/opcode"
 	"golox/internal/value"
 )
 
-const maxConstantIndex = 255
+const maxConstantIndex = 256
 const maxConstantLongIndex = 16_777_215
 
 type LineInfo struct {
@@ -52,12 +51,6 @@ func (c *Chunk) Free() {
 	c.Code = c.Code[:0]
 	c.lineInfo = c.lineInfo[:0]
 	c.Constants.Free()
-}
-
-func (c *Chunk) WriteConstant(value value.Value, line uint16) int {
-	index := c.AddConstant(value)
-	c.WriteIndexWithCheck(index, opcode.Constant, line)
-	return index
 }
 
 func (c *Chunk) WriteIndexWithCheck(index int, opcode byte, line uint16) {

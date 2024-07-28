@@ -34,11 +34,17 @@ func NewVM() *VM {
 }
 
 func (vm *VM) push(value value.Value) {
+	if vm.stackTop >= STACK_MAX {
+		panic("lox stack overflow")
+	}
 	vm.stack[vm.stackTop] = value
 	vm.stackTop++
 }
 
 func (vm *VM) pop() value.Value {
+	if vm.stackTop < 1 {
+		panic("lox stack underflow")
+	}
 	vm.stackTop--
 	return vm.stack[vm.stackTop]
 }
@@ -78,7 +84,7 @@ func (vm *VM) run() InterpretResult {
 
 		switch instruction := vm.readByte(); instruction {
 		case opcode.Constant, opcode.ConstantLong:
-			constant := vm.readConstant()
+			constant := vm.readConstant(instruction)
 			vm.push(constant)
 		case opcode.Nil:
 			vm.push(value.NilVal{})
@@ -89,7 +95,7 @@ func (vm *VM) run() InterpretResult {
 		case opcode.Pop:
 			vm.pop()
 		case opcode.GetGlobal, opcode.GetGlobalLong:
-			name := vm.readConstant().AsString()
+			name := vm.readConstant(instruction).AsString()
 			value, exists := vm.globals[name]
 			vm.pop()
 			if !exists {
@@ -98,14 +104,13 @@ func (vm *VM) run() InterpretResult {
 			}
 			vm.push(value)
 		case opcode.DefineGlobal, opcode.DefineGlobalLong:
-			name := vm.readConstant().AsString()
-			vm.globals[name] = vm.peek(0)
-			vm.pop()
+			name := vm.readConstant(instruction).AsString()
+			vm.globals[name] = vm.pop()
 		case opcode.SetGlobal, opcode.SetGlobalLong:
-			name := vm.readConstant().AsString()
+			name := vm.readConstant(instruction).AsString()
 			_, exists := vm.globals[name]
 			if exists {
-				vm.globals[name] = vm.peek(0)
+				vm.globals[name] = vm.pop()
 			} else {
 				vm.runtimeError("Undefined variable '%s'.", name)
 				return InterpretRuntimeError
@@ -167,8 +172,19 @@ func (vm *VM) readByte() byte {
 	return vm.chunk.Code[vm.ip-1]
 }
 
-func (vm *VM) readConstant() value.Value {
-	return vm.chunk.Constants[vm.readByte()]
+func (vm *VM) readConstant(op byte) value.Value {
+	switch op {
+	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal, opcode.SetGlobal:
+		return vm.chunk.Constants[vm.readByte()]
+	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong, opcode.SetGlobalLong:
+		index := uint32(vm.readByte()) << 16
+		index += uint32(vm.readByte()) << 8
+		index += uint32(vm.readByte())
+		return vm.chunk.Constants[index]
+	default:
+		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readConstant(op).", opcode.Name(op))
+		panic(msg)
+	}
 }
 
 func (vm *VM) binaryOP(operator byte) InterpretResult {

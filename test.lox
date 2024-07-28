@@ -1,1 +1,6 @@
-var foo = (1 / 0.3) + (20 - 2) * 11; var bar = foo % 3;
+var foo = (1 / 0.3) + (20 - 2) * 11;
+var bar = foo % 3;
+bar = bar + 10;
+print bar;
+print 10;
+print "first number is actual second is expected";

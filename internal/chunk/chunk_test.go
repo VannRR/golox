@@ -34,7 +34,8 @@ func Test_GetLine(t *testing.T) {
 func Test_Free(t *testing.T) {
 	ch := NewChunk()
 
-	ch.WriteConstant(value.NilVal{}, 123)
+	index := ch.AddConstant(value.NilVal{})
+	ch.WriteIndexWithCheck(index, opcode.Constant, 123)
 
 	ch.Free()
 
@@ -51,30 +52,16 @@ func Test_WriteIndexWithCheck(t *testing.T) {
 	ch := NewChunk()
 	globalVar := value.NumberVal(420)
 	var line uint16 = 123
-	index := ch.WriteConstant(globalVar, line)
-	ch.WriteIndexWithCheck(index, opcode.DefineGlobal, line)
+	index := ch.AddConstant(globalVar)
+	ch.WriteIndexWithCheck(index, opcode.Constant, line)
 
-	expectCodeCount(t, ch, 4)
+	expectCodeCount(t, ch, 2)
 
-	expectOpCodeAtIndex(t, ch, opcode.DefineGlobal, 2)
+	expectOpCodeAtIndex(t, ch, opcode.Constant, 1)
 
 	expectConstantCount(t, ch, 1)
 
 	expectConstantAtIndex(t, ch, globalVar, index)
-}
-
-func Test_WriteConstant(t *testing.T) {
-	ch := NewChunk()
-	val := value.NumberVal(21)
-	index := ch.WriteConstant(val, 123)
-
-	expectCodeCount(t, ch, 2)
-
-	expectOpCodeAtIndex(t, ch, opcode.Constant, 0)
-
-	expectConstantCount(t, ch, 1)
-
-	expectConstantAtIndex(t, ch, val, index)
 }
 
 func Test_AddConstant(t *testing.T) {
@@ -102,14 +89,14 @@ func Test_Write(t *testing.T) {
 func expectCodeCount(t *testing.T, ch *Chunk, count int) {
 	t.Helper()
 	if ch.Count() != count {
-		t.Errorf("Expected byte code count of '%v', got '%v'.", count, ch.Count())
+		t.Fatalf("Expected byte code count of '%v', got '%v'.", count, ch.Count())
 	}
 }
 
 func expectConstantCount(t *testing.T, ch *Chunk, count int) {
 	t.Helper()
 	if ch.Constants.Count() != count {
-		t.Errorf("Expected constants count of '%v', got '%v'.", count, ch.Constants.Count())
+		t.Fatalf("Expected constants count of '%v', got '%v'.", count, ch.Constants.Count())
 	}
 }
 

@@ -305,7 +305,9 @@ func (p *Parser) parseVariable(errorMessage []byte) int {
 }
 
 func (p *Parser) identifierConstant(name *token.Token) int {
-	return p.chunk.WriteConstant(value.StringVal(string(name.Lexeme)), p.previous.Line)
+	index := p.chunk.AddConstant(value.StringVal(string(name.Lexeme)))
+	p.chunk.WriteIndexWithCheck(index, opcode.Constant, p.current.Line)
+	return index
 }
 
 func (p *Parser) defineVariable(global int) {
@@ -384,7 +386,8 @@ func (p *Parser) emitReturn() {
 }
 
 func (p *Parser) emitConstant(v value.Value) {
-	p.chunk.WriteConstant(v, p.previous.Line)
+	index := p.chunk.AddConstant(v)
+	p.chunk.WriteIndexWithCheck(index, opcode.Constant, p.previous.Line)
 }
 
 func (p *Parser) emitBytes(byte1 byte, byte2 byte) {
