@@ -18,7 +18,10 @@ func Test_push(t *testing.T) {
 	vm := NewVM()
 	val := value.NumberVal(42)
 
-	vm.push(val)
+	pushResult := vm.push(val)
+	if pushResult != InterpretNoResult {
+		t.Fatalf("Expected no overflow with push")
+	}
 
 	if vm.stackTop != 1 {
 		t.Errorf("Expected stackTop to be 1, got %d", vm.stackTop)
@@ -30,13 +33,36 @@ func Test_push(t *testing.T) {
 	}
 }
 
+func Test_push_overflow(t *testing.T) {
+	vm := NewVM()
+	val := value.NilVal{}
+
+	pushResult := InterpretNoResult
+	for i := 0; i < 99999; i++ {
+		re := vm.push(val)
+		if re == InterpretRuntimeError {
+			pushResult = re
+			break
+		}
+	}
+	if pushResult != InterpretRuntimeError {
+		t.Errorf("Expected overflow runtime error with push")
+	}
+}
+
 func Test_pop(t *testing.T) {
 	vm := NewVM()
 	val := value.NumberVal(42)
 
-	vm.push(val)
+	pushResult := vm.push(val)
+	if pushResult != InterpretNoResult {
+		t.Fatalf("Expected no overflow with push")
+	}
 
-	popped := vm.pop()
+	popped, popResult := vm.pop()
+	if popResult != InterpretNoResult {
+		t.Fatalf("Expected no underflow with pop")
+	}
 
 	if vm.stackTop != 0 {
 		t.Errorf("Expected stackTop to be 0 after pop, got %d", vm.stackTop)
@@ -46,10 +72,24 @@ func Test_pop(t *testing.T) {
 	}
 }
 
+func Test_pop_underflow(t *testing.T) {
+	vm := NewVM()
+
+	_, popResult := vm.pop()
+
+	if popResult != InterpretRuntimeError {
+		t.Errorf("Expected underflow runtime error with pop")
+	}
+}
+
 func Test_peek(t *testing.T) {
 	vm := NewVM()
 	val := value.NumberVal(42)
-	vm.push(val)
+
+	pushResult := vm.push(val)
+	if pushResult != InterpretNoResult {
+		t.Fatalf("Expected no overflow with push")
+	}
 
 	peeked := vm.peek(0)
 
@@ -232,8 +272,13 @@ func checkBinaryOp(t *testing.T, a int, b int, operation byte, expected value.Va
 	vm.push(value.NumberVal(b))
 
 	vm.binaryOP(operation)
-	result := vm.pop()
-	if result != expected {
-		t.Errorf("Expected (%v %v %v) == %v, got %v", a, opcode.Name(operation), b, expected, result)
+
+	actual, popResult := vm.pop()
+	if popResult != InterpretNoResult {
+		t.Fatalf("Expected no underflow with push")
+	}
+
+	if actual != expected {
+		t.Errorf("Expected (%v %v %v) == %v, got %v", a, opcode.Name(operation), b, expected, actual)
 	}
 }

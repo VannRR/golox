@@ -33,20 +33,25 @@ func NewVM() *VM {
 	return &VM{}
 }
 
-func (vm *VM) push(value value.Value) {
+func (vm *VM) push(value value.Value) InterpretResult {
 	if vm.stackTop >= STACK_MAX {
-		panic("lox stack overflow")
+		vm.runtimeError("Stack overflow, tried to push with %v values on stack.", STACK_MAX)
+		return InterpretRuntimeError
 	}
+
 	vm.stack[vm.stackTop] = value
 	vm.stackTop++
+	return InterpretNoResult
 }
 
-func (vm *VM) pop() value.Value {
+func (vm *VM) pop() (value.Value, InterpretResult) {
 	if vm.stackTop < 1 {
-		panic("lox stack underflow")
+		vm.runtimeError("Stack underflow, tried to pop with no values on stack.")
+		return value.NilVal{}, InterpretRuntimeError
 	}
+
 	vm.stackTop--
-	return vm.stack[vm.stackTop]
+	return vm.stack[vm.stackTop], InterpretNoResult
 }
 
 func (vm *VM) peek(distance int) value.Value {
@@ -85,55 +90,120 @@ func (vm *VM) run() InterpretResult {
 		switch instruction := vm.readByte(); instruction {
 		case opcode.Constant, opcode.ConstantLong:
 			constant := vm.readConstant(instruction)
-			vm.push(constant)
+			pushResult := vm.push(constant)
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.Nil:
-			vm.push(value.NilVal{})
+			pushResult := vm.push(value.NilVal{})
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.True:
-			vm.push(value.BoolVal(true))
+			pushResult := vm.push(value.BoolVal(true))
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.False:
-			vm.push(value.BoolVal(false))
+			pushResult := vm.push(value.BoolVal(false))
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.Pop:
-			vm.pop()
+			_, popResult := vm.pop()
+			if popResult != InterpretNoResult {
+				return popResult
+			}
 		case opcode.GetGlobal, opcode.GetGlobalLong:
 			name := vm.readConstant(instruction).AsString()
-			value, exists := vm.globals[name]
-			vm.pop()
+			val, exists := vm.globals[name]
+			_, popResult := vm.pop()
+			if popResult != InterpretNoResult {
+				return popResult
+			}
 			if !exists {
 				vm.runtimeError("Undefined variable '%s'.", name)
 				return InterpretRuntimeError
 			}
-			vm.push(value)
+			pushResult := vm.push(val)
+			if pushResult != InterpretNoResult {
+				return popResult
+			}
 		case opcode.DefineGlobal, opcode.DefineGlobalLong:
 			name := vm.readConstant(instruction).AsString()
-			vm.globals[name] = vm.pop()
+			val, popResult := vm.pop()
+			if popResult != InterpretNoResult {
+				return popResult
+			}
+			vm.globals[name] = val
 		case opcode.SetGlobal, opcode.SetGlobalLong:
 			name := vm.readConstant(instruction).AsString()
 			_, exists := vm.globals[name]
 			if exists {
-				vm.globals[name] = vm.pop()
+				val, popResult := vm.pop()
+				if popResult != InterpretNoResult {
+					return popResult
+				}
+				vm.globals[name] = val
 			} else {
 				vm.runtimeError("Undefined variable '%s'.", name)
 				return InterpretRuntimeError
 			}
 		case opcode.Equal:
-			b := vm.pop()
-			a := vm.pop()
-			vm.push(value.BoolVal((a.IsEqual(b))))
+			valB, popResultB := vm.pop()
+			if popResultB != InterpretNoResult {
+				return popResultB
+			}
+			valA, popResultA := vm.pop()
+			if popResultA != InterpretNoResult {
+				return popResultA
+			}
+			pushResult := vm.push(value.BoolVal((valA.IsEqual(valB))))
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.NotEqual:
-			b := vm.pop()
-			a := vm.pop()
-			vm.push(value.BoolVal((!a.IsEqual(b))))
+			valB, popResultB := vm.pop()
+			if popResultB != InterpretNoResult {
+				return popResultB
+			}
+			valA, popResultA := vm.pop()
+			if popResultA != InterpretNoResult {
+				return popResultA
+			}
+			pushResult := vm.push(value.BoolVal((!valA.IsEqual(valB))))
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.Add:
 			a := vm.peek(1)
 			b := vm.peek(0)
 			if a.IsString() && b.IsString() {
-				b := vm.pop()
-				a := vm.pop()
-				vm.push(value.StringVal(a.AsString() + b.AsString()))
+				valB, popResultB := vm.pop()
+				if popResultB != InterpretNoResult {
+					return popResultB
+				}
+				valA, popResultA := vm.pop()
+				if popResultA != InterpretNoResult {
+					return popResultA
+				}
+				pushResult := vm.push(value.StringVal(valA.AsString() + valB.AsString()))
+				if pushResult != InterpretNoResult {
+					return pushResult
+				}
 			} else if a.IsNumber() && b.IsNumber() {
-				b := vm.pop()
-				a := vm.pop()
-				vm.push(value.NumberVal(a.AsNumber() + b.AsNumber()))
+				valB, popResultB := vm.pop()
+				if popResultB != InterpretNoResult {
+					return popResultB
+				}
+				valA, popResultA := vm.pop()
+				if popResultA != InterpretNoResult {
+					return popResultA
+				}
+				pushResult := vm.push(value.NumberVal(valA.AsNumber() + valB.AsNumber()))
+				if pushResult != InterpretNoResult {
+					return pushResult
+				}
 			} else {
 				vm.runtimeError(
 					"Operands must be two numbers or two strings.")
@@ -146,18 +216,34 @@ func (vm *VM) run() InterpretResult {
 				return result
 			}
 		case opcode.Not:
-			val := vm.pop()
-			vm.push(value.BoolVal(val.IsFalsey()))
+			val, popResult := vm.pop()
+			if popResult != InterpretNoResult {
+				return popResult
+			}
+			pushResult := vm.push(value.BoolVal(val.IsFalsey()))
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
 		case opcode.Negate:
 			if val := vm.peek(0); !val.IsNumber() {
 				vm.runtimeError("Operand must be a number.")
 				return InterpretRuntimeError
 			} else {
-				val := vm.pop()
-				vm.push(value.NumberVal(-val.AsNumber()))
+				val, popResult := vm.pop()
+				if popResult != InterpretNoResult {
+					return popResult
+				}
+				pushResult := vm.push(value.NumberVal(-val.AsNumber()))
+				if pushResult != InterpretNoResult {
+					return pushResult
+				}
 			}
 		case opcode.Print:
-			fmt.Printf("%s\n", vm.pop().Stringify())
+			val, popResult := vm.pop()
+			if popResult != InterpretNoResult {
+				return popResult
+			}
+			fmt.Printf("%s\n", val.Stringify())
 		case opcode.Return:
 			return InterpretOk
 		default:
@@ -193,26 +279,56 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 		return InterpretRuntimeError
 	}
 
-	b := vm.pop()
-	a := vm.pop()
+	valB, popResultB := vm.pop()
+	if popResultB != InterpretNoResult {
+		return popResultB
+	}
+	valA, popResultA := vm.pop()
+	if popResultA != InterpretNoResult {
+		return popResultA
+	}
 
 	switch operator {
 	case opcode.Greater:
-		vm.push(value.BoolVal(a.AsNumber() > b.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.AsNumber() > valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.GreaterEqual:
-		vm.push(value.BoolVal(a.AsNumber() >= b.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.AsNumber() >= valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.Less:
-		vm.push(value.BoolVal(a.AsNumber() < b.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.AsNumber() < valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.LessEqual:
-		vm.push(value.BoolVal(a.AsNumber() <= b.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.AsNumber() <= valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.Subtract:
-		vm.push(value.NumberVal(a.AsNumber() - b.AsNumber()))
+		pushResult := vm.push(value.NumberVal(valA.AsNumber() - valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.Multiply:
-		vm.push(value.NumberVal(a.AsNumber() * b.AsNumber()))
+		pushResult := vm.push(value.NumberVal(valA.AsNumber() * valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.Divide:
-		vm.push(value.NumberVal(a.AsNumber() / b.AsNumber()))
+		pushResult := vm.push(value.NumberVal(valA.AsNumber() / valB.AsNumber()))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	case opcode.Modulo:
-		vm.push(value.NumberVal(float64(int(a.AsNumber()) % int(b.AsNumber()))))
+		pushResult := vm.push(value.NumberVal(float64(int(valA.AsNumber()) % int(valB.AsNumber()))))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
 	default:
 		err := fmt.Sprintf("Invalid binary operator %v", operator)
 		panic(err)
