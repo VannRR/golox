@@ -36,16 +36,32 @@ func Test_GetRule(t *testing.T) {
 	}
 }
 
+func Test_NewCompiler(t *testing.T) {
+	co := NewCompiler()
+
+	expected := &Compiler{
+		locals:     make([]Local, 1),
+		localCount: 0,
+		scopeDepth: 0,
+	}
+
+	if fmt.Sprint(co) != fmt.Sprint(expected) {
+		t.Errorf("Expected NewCompiler '%v', got '%v'.", expected, co)
+	}
+}
+
 func Test_NewParser(t *testing.T) {
 	s := []byte("var foo = 1;")
 	l := lexer.NewLexer(&s)
-	c := chunk.NewChunk()
+	co := NewCompiler()
+	ch := chunk.NewChunk()
 
-	p := NewParser(l, c)
+	p := NewParser(l, ch, co)
 
 	expected := &Parser{
 		lexer:     l,
-		chunk:     c,
+		chunk:     ch,
+		compiler:  co,
 		current:   token.Token{},
 		previous:  token.Token{},
 		hadError:  false,
@@ -167,6 +183,32 @@ func Test_expression(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
+func Test_block(t *testing.T) {
+	p := setupParserForTest("{1}")
+
+	p.block()
+
+	expectedOpcodes := []byte{
+		opcode.Pop,
+	}
+
+	expectedConstants := []value.Value{}
+
+	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+
+	checkConstants(t, p.chunk.Constants, expectedConstants)
+}
+
+func Test_block_fail(t *testing.T) {
+	p := setupParserForTest("{1")
+
+	p.block()
+
+	if !p.panicMode {
+		t.Error("Expected panic from block without '{'.")
+	}
+}
+
 func Test_grouping(t *testing.T) {
 	p := setupParserForTest("(1 + 2)")
 
@@ -265,6 +307,49 @@ func Test_variable_set(t *testing.T) {
 	checkOpcodes(t, c.Code, expectedOpcodes)
 
 	checkConstants(t, c.Constants, expectedConstants)
+}
+
+func Test_namedVariable(t *testing.T) {
+	p := setupParserForTest("")
+
+	p.namedVariable(token.Token{Type: token.Identifier, Lexeme: []byte("myVar")}, true)
+	expectedOne := []byte{
+		opcode.Constant, 0,
+		opcode.GetGlobal, 0,
+	}
+	checkOpcodes(t, p.chunk.Code, expectedOne)
+
+	p.namedVariable(token.Token{Type: token.Identifier, Lexeme: []byte("anotherVar")}, false)
+	expectedTwo := []byte{
+		opcode.Constant, 0,
+		opcode.GetGlobal, 0,
+		opcode.Constant, 1,
+		opcode.GetGlobal, 1,
+	}
+	checkOpcodes(t, p.chunk.Code, expectedTwo)
+}
+
+func Test_resolveLocal(t *testing.T) {
+	p := setupParserForTest("")
+
+	l := []byte("mylocal")
+
+	p.compiler.localCount = 2
+
+	p.compiler.locals = append(
+		p.compiler.locals,
+		Local{depth: 0, name: token.Token{Type: token.Identifier, Lexeme: l}},
+	)
+
+	index := p.resolveLocal(&token.Token{Type: token.Identifier, Lexeme: l})
+	if index != 1 {
+		t.Errorf("Expected index == 1, got %v", index)
+	}
+
+	index = p.resolveLocal(&token.Token{Type: token.Identifier, Lexeme: []byte("nonExistent")})
+	if index != -1 {
+		t.Errorf("Expected index == -1, got %v", index)
+	}
 }
 
 func Test_string(t *testing.T) {
@@ -425,6 +510,38 @@ func Test_parseVariable(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
+func Test_parseVariable_ScopeDepthGreaterThanZero(t *testing.T) {
+	input := "anotherVar"
+	p := setupParserForTest(input)
+
+	p.current = p.lexer.ScanToken()
+	p.compiler.scopeDepth = 1
+
+	result := p.parseVariable([]byte("Scope depth test"))
+	if result != 0 {
+		t.Errorf("Expected result from parseVariable to be 0, got %v", result)
+	}
+}
+
+func Test_addLocal(t *testing.T) {
+	p := setupParserForTest("")
+
+	localVarName := token.Token{Type: token.Identifier, Lexeme: []byte("myVar")}
+	p.compiler.localCount = 0
+	p.addLocal(localVarName)
+
+	if p.compiler.localCount != 1 {
+		t.Errorf("Expected compiler localCount to be 1, got %v", p.compiler.localCount)
+	}
+
+	p.compiler.localCount = 999999999
+	p.addLocal(token.Token{Type: token.Identifier, Lexeme: []byte("tooManyVar")})
+
+	if p.hadError != true {
+		t.Error("Expected error from trying to add to many local variables.")
+	}
+}
+
 func Test_defineVariable(t *testing.T) {
 	index := 0
 	p := setupParserForTest("wow")
@@ -525,6 +642,40 @@ func Test_consume(t *testing.T) {
 
 }
 
+func Test_beginScope(t *testing.T) {
+	p := setupParserForTest("")
+
+	p.beginScope()
+
+	if p.compiler.scopeDepth != 1 {
+		t.Errorf("Expected scopeDepth of 1, got %v.", p.compiler.scopeDepth)
+	}
+}
+
+func Test_endScope(t *testing.T) {
+	p := setupParserForTest("")
+
+	p.compiler.scopeDepth = 1
+
+	p.compiler.locals = append(p.compiler.locals,
+		Local{depth: 1, name: token.Token{Type: token.Identifier, Lexeme: []byte("var1")}},
+		Local{depth: 1, name: token.Token{Type: token.Identifier, Lexeme: []byte("var2")}},
+		Local{depth: 1, name: token.Token{Type: token.Identifier, Lexeme: []byte("var3")}},
+	)
+
+	p.compiler.localCount = 3
+
+	p.endScope()
+
+	if p.compiler.scopeDepth != 0 {
+		t.Errorf("Expected scopeDepth of 0, got %v.", p.compiler.scopeDepth)
+	}
+
+	if p.compiler.localCount != 1 {
+		t.Errorf("Expected localCount of 1, got %v.", p.compiler.localCount)
+	}
+}
+
 func Test_emitConstant(t *testing.T) {
 	p := setupParserForTest("")
 
@@ -548,8 +699,9 @@ func Test_emitByte(t *testing.T) {
 func setupParserForTest(source string) *Parser {
 	s := []byte(source)
 	l := lexer.NewLexer(&s)
-	c := chunk.NewChunk()
-	return NewParser(l, c)
+	co := NewCompiler()
+	ch := chunk.NewChunk()
+	return NewParser(l, ch, co)
 }
 
 func checkOpcodes(t *testing.T, actual []byte, expected []byte) {
@@ -597,5 +749,4 @@ func checkConstants(t *testing.T, actual []value.Value, expected []value.Value) 
 			t.Errorf("Expected constant '%v' at index %v, got '%v'.", expectedConstant, i, constant)
 		}
 	}
-
 }

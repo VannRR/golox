@@ -37,14 +37,10 @@ func Test_push_overflow(t *testing.T) {
 	vm := NewVM()
 	val := value.NilVal{}
 
-	pushResult := InterpretNoResult
-	for i := 0; i < 99999; i++ {
-		re := vm.push(val)
-		if re == InterpretRuntimeError {
-			pushResult = re
-			break
-		}
-	}
+	vm.stackTop = 16_777_215
+
+	pushResult := vm.push(val)
+
 	if pushResult != InterpretRuntimeError {
 		t.Errorf("Expected overflow runtime error with push")
 	}
@@ -134,6 +130,17 @@ func Test_run(t *testing.T) {
 			source:   "false;",
 			expected: InterpretOk,
 		},
+		{
+			name:     "define and get local",
+			source:   "{var local = 123; local;}",
+			expected: InterpretOk,
+		},
+		{
+			name:     "define and set local",
+			source:   "{var local = 123; local = 321;}",
+			expected: InterpretOk,
+		},
+
 		{
 			name:     "define and get global",
 			source:   "var global = 123; global;",
@@ -238,6 +245,46 @@ func Test_readConstant(t *testing.T) {
 
 	expected := value.NumberVal(42)
 	actual := vm.readConstant(opcode.Constant)
+
+	if actual != expected {
+		t.Errorf("Expected %v, but got %v", expected, actual)
+	}
+}
+
+func Test_readIndex(t *testing.T) {
+	vm := &VM{
+		ip: 0,
+		chunk: &chunk.Chunk{
+			Code:      []byte{21},
+			Constants: []value.Value{},
+		},
+	}
+
+	expected := 21
+	actual := vm.readIndex(opcode.GetLocal)
+
+	if actual != expected {
+		t.Errorf("Expected %v, but got %v", expected, actual)
+	}
+}
+
+func Test_readIndex_Long(t *testing.T) {
+
+	expected := 22222
+
+	vm := &VM{
+		ip: 0,
+		chunk: &chunk.Chunk{
+			Code: []byte{
+				byte(expected >> 16),
+				byte(expected >> 8),
+				byte(expected),
+			},
+			Constants: []value.Value{},
+		},
+	}
+
+	actual := vm.readIndex(opcode.GetLocalLong)
 
 	if actual != expected {
 		t.Errorf("Expected %v, but got %v", expected, actual)

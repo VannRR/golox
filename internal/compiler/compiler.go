@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"bytes"
 	"fmt"
 	"golox/internal/chunk"
 	"golox/internal/debug"
@@ -11,6 +12,8 @@ import (
 	"os"
 	"strconv"
 )
+
+const MaxLocalCount int = 16_777_215
 
 const (
 	PrecNone       Precedence = iota
@@ -85,19 +88,40 @@ func getRule(tt token.TokenType) *ParseRule {
 	return &rules[tt]
 }
 
+type Local struct {
+	name  token.Token
+	depth int
+}
+
+type Compiler struct {
+	locals     []Local
+	localCount int
+	scopeDepth int
+}
+
+func NewCompiler() *Compiler {
+	return &Compiler{
+		locals:     make([]Local, 1),
+		localCount: 0,
+		scopeDepth: 0,
+	}
+}
+
 type Parser struct {
 	lexer     *lexer.Lexer
 	chunk     *chunk.Chunk
+	compiler  *Compiler
 	current   token.Token
 	previous  token.Token
 	hadError  bool
 	panicMode bool
 }
 
-func NewParser(l *lexer.Lexer, c *chunk.Chunk) *Parser {
+func NewParser(l *lexer.Lexer, ch *chunk.Chunk, co *Compiler) *Parser {
 	return &Parser{
 		lexer:     l,
-		chunk:     c,
+		chunk:     ch,
+		compiler:  co,
 		current:   token.Token{},
 		previous:  token.Token{},
 		hadError:  false,
@@ -105,9 +129,10 @@ func NewParser(l *lexer.Lexer, c *chunk.Chunk) *Parser {
 	}
 }
 
-func Compile(source *[]byte, c *chunk.Chunk) bool {
+func Compile(source *[]byte, ch *chunk.Chunk) bool {
 	l := lexer.NewLexer(source)
-	p := NewParser(l, c)
+	co := NewCompiler()
+	p := NewParser(l, ch, co)
 	p.advance()
 	for !p.match(token.Eof) {
 		p.declaration()
@@ -131,6 +156,10 @@ func (p *Parser) declaration() {
 func (p *Parser) statement() {
 	if p.match(token.Print) {
 		p.printStatement()
+	} else if p.match(token.LeftBrace) {
+		p.beginScope()
+		p.block()
+		p.endScope()
 	} else {
 		p.expressionStatement()
 	}
@@ -184,6 +213,13 @@ func (p *Parser) expression() {
 	p.parsePrecedence(PrecAssignment)
 }
 
+func (p *Parser) block() {
+	for !p.check(token.RightBrace) && !p.check(token.Eof) {
+		p.declaration()
+	}
+	p.consume(token.RightBrace, []byte("Expect '}' after block."))
+}
+
 func (p *Parser) grouping(canAssign bool) {
 	p.expression()
 	p.consume(token.RightParen, []byte("Expect ')' after expression."))
@@ -202,13 +238,36 @@ func (p *Parser) variable(canAssign bool) {
 }
 
 func (p *Parser) namedVariable(name token.Token, canAssign bool) {
-	index := p.identifierConstant(&name)
+	var getOp, setOp uint8
+	index := p.resolveLocal(&name)
+	if index != -1 {
+		getOp = opcode.GetLocal
+		setOp = opcode.SetLocal
+	} else {
+		index = p.identifierConstant(&name)
+		getOp = opcode.GetGlobal
+		setOp = opcode.SetGlobal
+	}
+
 	if canAssign && p.match(token.Equal) {
 		p.expression()
-		p.chunk.WriteIndexWithCheck(index, opcode.SetGlobal, p.previous.Line)
+		p.chunk.WriteIndexWithCheck(index, setOp, p.previous.Line)
 	} else {
-		p.chunk.WriteIndexWithCheck(index, opcode.GetGlobal, p.previous.Line)
+		p.chunk.WriteIndexWithCheck(index, getOp, p.previous.Line)
 	}
+}
+
+func (p *Parser) resolveLocal(name *token.Token) int {
+	for i := p.compiler.localCount - 1; i >= 0; i-- {
+		local := &p.compiler.locals[i]
+		if identifiersEqual(name, &local.name) {
+			if local.depth == -1 {
+				p.error([]byte("Can't read local variable in its own initializer."))
+			}
+			return int(i)
+		}
+	}
+	return -1
 }
 
 func (p *Parser) string(canAssign bool) {
@@ -301,6 +360,12 @@ func (p *Parser) parsePrecedence(precedence Precedence) {
 
 func (p *Parser) parseVariable(errorMessage []byte) int {
 	p.consume(token.Identifier, errorMessage)
+
+	p.declareVariable()
+	if p.compiler.scopeDepth > 0 {
+		return 0
+	}
+
 	return p.identifierConstant(&p.previous)
 }
 
@@ -310,8 +375,53 @@ func (p *Parser) identifierConstant(name *token.Token) int {
 	return index
 }
 
+func (p *Parser) declareVariable() {
+	if p.compiler.scopeDepth == 0 {
+		return
+	}
+
+	name := &p.previous
+
+	for i := p.compiler.localCount - 1; i >= 0; i-- {
+		local := &p.compiler.locals[i]
+		if local.depth != -1 && local.depth < p.compiler.scopeDepth {
+			break
+		}
+
+		if identifiersEqual(name, &local.name) {
+			p.error([]byte("Already a variable with this name in this scope."))
+		}
+	}
+
+	p.addLocal(*name)
+}
+
+func identifiersEqual(a *token.Token, b *token.Token) bool {
+	return bytes.Equal(a.Lexeme, b.Lexeme)
+}
+
+func (p *Parser) addLocal(name token.Token) {
+	if p.compiler.localCount >= MaxLocalCount {
+		p.error([]byte("Too many local variables in function."))
+		return
+	}
+
+	local := &p.compiler.locals[p.compiler.localCount]
+	p.compiler.localCount++
+	local.name = name
+	local.depth = -1
+}
+
 func (p *Parser) defineVariable(global int) {
+	if p.compiler.scopeDepth > 0 {
+		p.markInitialized()
+		return
+	}
 	p.chunk.WriteIndexWithCheck(global, opcode.DefineGlobal, p.previous.Line)
+}
+
+func (p *Parser) markInitialized() {
+	p.compiler.locals[p.compiler.localCount-1].depth = p.compiler.scopeDepth
 }
 
 func (p *Parser) error(message []byte) {
@@ -381,6 +491,21 @@ func (p *Parser) endCompiler() {
 	}
 }
 
+func (p *Parser) beginScope() {
+	p.compiler.scopeDepth++
+}
+
+func (p *Parser) endScope() {
+	p.compiler.scopeDepth--
+
+	for p.compiler.localCount > 0 &&
+		p.compiler.locals[p.compiler.localCount-1].depth >
+			p.compiler.scopeDepth {
+		p.emitByte(opcode.Pop)
+		p.compiler.localCount--
+	}
+}
+
 func (p *Parser) emitReturn() {
 	p.emitByte(opcode.Return)
 }
@@ -390,10 +515,10 @@ func (p *Parser) emitConstant(v value.Value) {
 	p.chunk.WriteIndexWithCheck(index, opcode.Constant, p.previous.Line)
 }
 
-func (p *Parser) emitBytes(byte1 byte, byte2 byte) {
-	p.emitByte(byte1)
-	p.emitByte(byte2)
-}
+// func (p *Parser) emitBytes(byte1 byte, byte2 byte) {
+// 	p.emitByte(byte1)
+// 	p.emitByte(byte2)
+// }
 
 func (p *Parser) emitByte(byte byte) {
 	p.chunk.Write(byte, p.previous.Line)

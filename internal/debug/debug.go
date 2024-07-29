@@ -37,6 +37,10 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 		opcode.Multiply, opcode.Divide, opcode.Not, opcode.Modulo,
 		opcode.Negate, opcode.Print, opcode.Return:
 		return simpleInstruction(opcode.Name(op), offset)
+	case opcode.GetLocal, opcode.SetLocal:
+		return byteInstruction(opcode.Name(op), c, offset)
+	case opcode.GetLocalLong, opcode.SetLocalLong:
+		return byteInstructionLong(opcode.Name(op), c, offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", op)
 		return offset + 1
@@ -60,4 +64,18 @@ func constantLongInstruction(name string, c *chunk.Chunk, offset int) int {
 func simpleInstruction(name string, offset int) int {
 	fmt.Printf("%s\n", name)
 	return offset + 1
+}
+
+func byteInstruction(name string, c *chunk.Chunk, offset int) int {
+	slot := c.Code[offset+1]
+	fmt.Printf("%-16s %4d\n", name, slot)
+	return offset + 2
+}
+
+func byteInstructionLong(name string, c *chunk.Chunk, offset int) int {
+	slot := uint32(c.Code[offset+1]) << 16
+	slot += uint32(c.Code[offset+2]) << 8
+	slot += uint32(c.Code[offset+3])
+	fmt.Printf("%-16s %4d\n", name, slot)
+	return offset + 4
 }

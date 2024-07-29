@@ -19,10 +19,10 @@ const (
 	InterpretNoResult
 )
 
-const STACK_MAX int = 256
+const StackMax int = 16_777_215
 
 type VM struct {
-	stack    [STACK_MAX]value.Value
+	stack    []value.Value
 	chunk    *chunk.Chunk
 	ip       int
 	stackTop int
@@ -30,16 +30,18 @@ type VM struct {
 }
 
 func NewVM() *VM {
-	return &VM{}
+	return &VM{
+		stack: make([]value.Value, 0),
+	}
 }
 
 func (vm *VM) push(value value.Value) InterpretResult {
-	if vm.stackTop >= STACK_MAX {
-		vm.runtimeError("Stack overflow, tried to push with %v values on stack.", STACK_MAX)
+	if vm.stackTop >= StackMax {
+		vm.runtimeError("Stack overflow, tried to push with %v values on stack.", StackMax)
 		return InterpretRuntimeError
 	}
 
-	vm.stack[vm.stackTop] = value
+	vm.stack = append(vm.stack, value)
 	vm.stackTop++
 	return InterpretNoResult
 }
@@ -49,9 +51,10 @@ func (vm *VM) pop() (value.Value, InterpretResult) {
 		vm.runtimeError("Stack underflow, tried to pop with no values on stack.")
 		return value.NilVal{}, InterpretRuntimeError
 	}
-
 	vm.stackTop--
-	return vm.stack[vm.stackTop], InterpretNoResult
+	poppedValue := vm.stack[vm.stackTop]
+	vm.stack = vm.stack[:vm.stackTop]
+	return poppedValue, InterpretNoResult
 }
 
 func (vm *VM) peek(distance int) value.Value {
@@ -114,6 +117,15 @@ func (vm *VM) run() InterpretResult {
 			if popResult != InterpretNoResult {
 				return popResult
 			}
+		case opcode.GetLocal, opcode.GetLocalLong:
+			slot := vm.readIndex(instruction)
+			pushResult := vm.push(vm.stack[slot])
+			if pushResult != InterpretNoResult {
+				return pushResult
+			}
+		case opcode.SetLocal, opcode.SetLocalLong:
+			slot := vm.readIndex(instruction)
+			vm.stack[slot] = vm.peek(slot)
 		case opcode.GetGlobal, opcode.GetGlobalLong:
 			name := vm.readConstant(instruction).AsString()
 			val, exists := vm.globals[name]
@@ -259,16 +271,24 @@ func (vm *VM) readByte() byte {
 }
 
 func (vm *VM) readConstant(op byte) value.Value {
+	index := vm.readIndex(op)
+	return vm.chunk.Constants[index]
+
+}
+
+func (vm *VM) readIndex(op byte) int {
 	switch op {
-	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal, opcode.SetGlobal:
-		return vm.chunk.Constants[vm.readByte()]
-	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong, opcode.SetGlobalLong:
+	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal,
+		opcode.SetGlobal, opcode.GetLocal, opcode.SetLocal:
+		return int(vm.readByte())
+	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong,
+		opcode.SetGlobalLong, opcode.GetLocalLong, opcode.SetLocalLong:
 		index := uint32(vm.readByte()) << 16
 		index += uint32(vm.readByte()) << 8
 		index += uint32(vm.readByte())
-		return vm.chunk.Constants[index]
+		return int(index)
 	default:
-		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readConstant(op).", opcode.Name(op))
+		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readIndex(op).", opcode.Name(op))
 		panic(msg)
 	}
 }

@@ -7,6 +7,10 @@ const (
 	True
 	False
 	Pop
+	GetLocal
+	GetLocalLong
+	SetLocal
+	SetLocalLong
 	GetGlobal
 	GetGlobalLong
 	DefineGlobal
@@ -44,6 +48,14 @@ func Name(op byte) string {
 		return "OpFalse"
 	case Pop:
 		return "OpPop"
+	case GetLocal:
+		return "OpGetLocal"
+	case GetLocalLong:
+		return "OpGetLocalLong"
+	case SetLocal:
+		return "OpSetLocal"
+	case SetLocalLong:
+		return "OpSetLocalLong"
 	case GetGlobal:
 		return "OpGetGlobal"
 	case GetGlobalLong:
