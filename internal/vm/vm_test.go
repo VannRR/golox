@@ -193,8 +193,13 @@ func Test_run(t *testing.T) {
 			expected: InterpretOk,
 		},
 		{
-			name:     "Jump if false",
-			source:   "if (false) print 1;",
+			name:     "if true",
+			source:   "if (true) print 1;",
+			expected: InterpretOk,
+		},
+		{
+			name:     "if false else",
+			source:   "if (false) print 1; else print 2;",
 			expected: InterpretOk,
 		},
 		{

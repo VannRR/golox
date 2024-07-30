@@ -2,11 +2,9 @@ package chunk
 
 import (
 	"fmt"
+	"golox/internal/common"
 	"golox/internal/value"
 )
-
-const maxConstantIndex = 256
-const maxConstantLongIndex = 16_777_215
 
 type LineInfo struct {
 	line  uint16
@@ -54,16 +52,16 @@ func (c *Chunk) Free() {
 }
 
 func (c *Chunk) WriteIndexWithCheck(index int, opcode byte, line uint16) {
-	if index <= maxConstantIndex {
+	if index <= common.Uint8Max {
 		c.Write(opcode, line)
 		c.Write(byte(index), line)
-	} else if index <= maxConstantLongIndex {
+	} else if index <= common.Uint24Max {
 		c.Write(opcode+1, line)
 		c.Write(byte(index>>16), line)
 		c.Write(byte(index>>8), line)
 		c.Write(byte(index), line)
 	} else {
-		msg := fmt.Sprintf("Too many constants (%d), must be less than 16,777,216", index)
+		msg := fmt.Sprintf("Too many constants (%d), must be less than (%d)", index, common.Uint24Max+1)
 		panic(msg)
 	}
 }

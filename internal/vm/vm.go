@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"golox/internal/chunk"
+	"golox/internal/common"
 	"golox/internal/compiler"
 	"golox/internal/debug"
 	"golox/internal/opcode"
@@ -19,8 +20,6 @@ const (
 	InterpretNoResult
 )
 
-const StackMax int = 16_777_215
-
 type VM struct {
 	stack    []value.Value
 	chunk    *chunk.Chunk
@@ -36,8 +35,8 @@ func NewVM() *VM {
 }
 
 func (vm *VM) push(value value.Value) InterpretResult {
-	if vm.stackTop >= StackMax {
-		vm.runtimeError("Stack overflow, tried to push with %v values on stack.", StackMax)
+	if vm.stackTop >= common.Uint24Max {
+		vm.runtimeError("Stack overflow, tried to push with %v values on stack.", common.Uint24Max)
 		return InterpretRuntimeError
 	}
 
@@ -256,6 +255,9 @@ func (vm *VM) run() InterpretResult {
 				return popResult
 			}
 			fmt.Printf("%s\n", val.Stringify())
+		case opcode.Jump:
+			offset := vm.readShort()
+			vm.ip += offset
 		case opcode.JumpIfFalse:
 			offset := vm.readShort()
 			if vm.peek(0).IsFalsey() {

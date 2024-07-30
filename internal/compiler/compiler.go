@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"golox/internal/chunk"
+	"golox/internal/common"
 	"golox/internal/debug"
 	"golox/internal/lexer"
 	"golox/internal/opcode"
@@ -12,8 +13,6 @@ import (
 	"os"
 	"strconv"
 )
-
-const MaxLocalCount int = 16_777_215
 
 const (
 	PrecNone       Precedence = iota
@@ -179,9 +178,18 @@ func (p *Parser) ifStatement() {
 	p.consume(token.RightParen, []byte("Expect ')' after condition."))
 
 	thenJump := p.emitJump(opcode.JumpIfFalse)
+	p.emitByte(opcode.Pop)
 	p.statement()
 
+	elseJump := p.emitJump(opcode.Jump)
+
 	p.patchJump(thenJump)
+	p.emitByte(opcode.Pop)
+
+	if p.match(token.Else) {
+		p.statement()
+	}
+	p.patchJump(elseJump)
 }
 
 func (p *Parser) expressionStatement() {
@@ -414,7 +422,7 @@ func identifiersEqual(a *token.Token, b *token.Token) bool {
 }
 
 func (p *Parser) addLocal(name token.Token) {
-	if p.compiler.localCount >= MaxLocalCount {
+	if p.compiler.localCount >= common.Uint24Max {
 		p.error([]byte("Too many local variables in function."))
 		return
 	}

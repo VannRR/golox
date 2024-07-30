@@ -31,6 +31,7 @@ const (
 	Modulo
 	Negate
 	Print
+	Jump
 	JumpIfFalse
 	Return
 )
@@ -97,6 +98,8 @@ func Name(op byte) string {
 		return "OpNegate"
 	case Print:
 		return "OpPrint"
+	case Jump:
+		return "OpJump"
 	case JumpIfFalse:
 		return "OpJumpIfFalse"
 	case Return:

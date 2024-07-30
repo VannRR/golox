@@ -149,9 +149,13 @@ func Test_ifStatement(t *testing.T) {
 	p.ifStatement()
 
 	expectedOpcodes := []byte{
-		opcode.JumpIfFalse, 0,
-		opcode.Nil,
+		opcode.JumpIfFalse,
+		opcode.Constant, 6,
+		opcode.Pop,
 		opcode.True,
+		opcode.Pop,
+		opcode.Jump,
+		opcode.Constant, 1,
 		opcode.Pop,
 	}
 
