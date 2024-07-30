@@ -256,40 +256,17 @@ func (vm *VM) run() InterpretResult {
 				return popResult
 			}
 			fmt.Printf("%s\n", val.Stringify())
+		case opcode.JumpIfFalse:
+			offset := vm.readShort()
+			if vm.peek(0).IsFalsey() {
+				vm.ip += offset
+			}
 		case opcode.Return:
 			return InterpretOk
 		default:
 			err := fmt.Sprintf("Unknown instruction %v", instruction)
 			panic(err)
 		}
-	}
-}
-
-func (vm *VM) readByte() byte {
-	vm.ip++
-	return vm.chunk.Code[vm.ip-1]
-}
-
-func (vm *VM) readConstant(op byte) value.Value {
-	index := vm.readIndex(op)
-	return vm.chunk.Constants[index]
-
-}
-
-func (vm *VM) readIndex(op byte) int {
-	switch op {
-	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal,
-		opcode.SetGlobal, opcode.GetLocal, opcode.SetLocal:
-		return int(vm.readByte())
-	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong,
-		opcode.SetGlobalLong, opcode.GetLocalLong, opcode.SetLocalLong:
-		index := uint32(vm.readByte()) << 16
-		index += uint32(vm.readByte()) << 8
-		index += uint32(vm.readByte())
-		return int(index)
-	default:
-		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readIndex(op).", opcode.Name(op))
-		panic(msg)
 	}
 }
 
@@ -355,6 +332,39 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 	}
 
 	return InterpretNoResult
+}
+
+func (vm *VM) readByte() byte {
+	vm.ip++
+	return vm.chunk.Code[vm.ip-1]
+}
+
+func (vm *VM) readShort() int {
+	vm.ip += 2
+	return int(uint16(vm.chunk.Code[vm.ip-2])<<8 | uint16(vm.chunk.Code[vm.ip-1]))
+}
+
+func (vm *VM) readConstant(op byte) value.Value {
+	index := vm.readIndex(op)
+	return vm.chunk.Constants[index]
+
+}
+
+func (vm *VM) readIndex(op byte) int {
+	switch op {
+	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal,
+		opcode.SetGlobal, opcode.GetLocal, opcode.SetLocal:
+		return int(vm.readByte())
+	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong,
+		opcode.SetGlobalLong, opcode.GetLocalLong, opcode.SetLocalLong:
+		index := uint32(vm.readByte()) << 16
+		index += uint32(vm.readByte()) << 8
+		index += uint32(vm.readByte())
+		return int(index)
+	default:
+		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readIndex(op).", opcode.Name(op))
+		panic(msg)
+	}
 }
 
 func (vm *VM) runtimeError(format string, args ...interface{}) {

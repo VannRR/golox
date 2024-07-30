@@ -193,6 +193,11 @@ func Test_run(t *testing.T) {
 			expected: InterpretOk,
 		},
 		{
+			name:     "Jump if false",
+			source:   "if (false) print 1;",
+			expected: InterpretOk,
+		},
+		{
 			name:     "operands must be two numbers or two strings",
 			source:   "123 + true;",
 			expected: InterpretRuntimeError,
@@ -226,6 +231,22 @@ func Test_readByte(t *testing.T) {
 
 	expected := byte(0x01)
 	actual := vm.readByte()
+
+	if actual != expected {
+		t.Errorf("Expected %x, but got %x", expected, actual)
+	}
+}
+
+func Test_readShort(t *testing.T) {
+	vm := &VM{
+		ip: 0,
+		chunk: &chunk.Chunk{
+			Code: []byte{0x1, 0x2},
+		},
+	}
+
+	expected := 0x102
+	actual := vm.readShort()
 
 	if actual != expected {
 		t.Errorf("Expected %x, but got %x", expected, actual)

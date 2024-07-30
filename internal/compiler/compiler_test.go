@@ -142,6 +142,37 @@ func Test_printStatement(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
+func Test_ifStatement(t *testing.T) {
+	input := "if (true);"
+	p := setupParserForTest(input)
+
+	p.ifStatement()
+
+	expectedOpcodes := []byte{
+		opcode.JumpIfFalse, 0,
+		opcode.Nil,
+		opcode.True,
+		opcode.Pop,
+	}
+
+	expectedConstants := []value.Value{}
+
+	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+
+	checkConstants(t, p.chunk.Constants, expectedConstants)
+}
+
+func Test_ifStatement_MissingParen(t *testing.T) {
+	input := "if (true;"
+	p := setupParserForTest(input)
+
+	p.ifStatement()
+
+	if !p.hadError {
+		t.Error("Expected error for missing parenthesis with if statement.")
+	}
+}
+
 func Test_varDeclaration(t *testing.T) {
 	p := setupParserForTest("var foo;")
 
@@ -684,6 +715,38 @@ func Test_emitConstant(t *testing.T) {
 	p.emitConstant(con)
 
 	checkConstants(t, p.chunk.Constants, []value.Value{con})
+}
+
+func Test_emitJump(t *testing.T) {
+	p := setupParserForTest("")
+	instruction := byte(opcode.JumpIfFalse)
+
+	result := p.emitJump(instruction)
+
+	opResult := p.chunk.Code[0]
+
+	if opResult != instruction {
+		t.Errorf("Expected %v, got %v", opcode.Name(instruction), opcode.Name(opResult))
+	}
+
+	expected := p.chunk.Count() - 2
+	if result != expected {
+		t.Errorf("Expected %d, got %d", expected, result)
+	}
+}
+
+func Test_patchJump(t *testing.T) {
+	p := setupParserForTest("")
+	p.chunk.Code = append(p.chunk.Code, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	offset := 4
+
+	p.patchJump(offset)
+
+	expected := p.chunk.Count() - offset - 2
+	result := int(p.chunk.Code[5])
+	if result != expected {
+		t.Errorf("Expected %d, got %d", expected, result)
+	}
 }
 
 func Test_emitByte(t *testing.T) {

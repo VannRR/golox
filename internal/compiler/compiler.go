@@ -156,6 +156,8 @@ func (p *Parser) declaration() {
 func (p *Parser) statement() {
 	if p.match(token.Print) {
 		p.printStatement()
+	} else if p.match(token.If) {
+		p.ifStatement()
 	} else if p.match(token.LeftBrace) {
 		p.beginScope()
 		p.block()
@@ -169,6 +171,17 @@ func (p *Parser) printStatement() {
 	p.expression()
 	p.consume(token.Semicolon, []byte("Expect ';' after value."))
 	p.emitByte(opcode.Print)
+}
+
+func (p *Parser) ifStatement() {
+	p.consume(token.LeftParen, []byte("Expect '(' after 'if'."))
+	p.expression()
+	p.consume(token.RightParen, []byte("Expect ')' after condition."))
+
+	thenJump := p.emitJump(opcode.JumpIfFalse)
+	p.statement()
+
+	p.patchJump(thenJump)
 }
 
 func (p *Parser) expressionStatement() {
@@ -513,6 +526,24 @@ func (p *Parser) emitReturn() {
 func (p *Parser) emitConstant(v value.Value) {
 	index := p.chunk.AddConstant(v)
 	p.chunk.WriteIndexWithCheck(index, opcode.Constant, p.previous.Line)
+}
+
+func (p *Parser) emitJump(instruction byte) int {
+	p.emitByte(instruction)
+	p.emitByte(0xff)
+	p.emitByte(0xff)
+	return p.chunk.Count() - 2
+}
+
+func (p *Parser) patchJump(offset int) {
+	jump := p.chunk.Count() - offset - 2
+
+	if jump > 0xffff {
+		p.error([]byte("Too much code to jump over."))
+	}
+
+	p.chunk.Code[offset] = byte(jump >> 8)
+	p.chunk.Code[offset+1] = byte(jump)
 }
 
 // func (p *Parser) emitBytes(byte1 byte, byte2 byte) {
