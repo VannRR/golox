@@ -54,7 +54,7 @@ func init() {
 	rules[token.Identifier] = ParseRule{(*Parser).variable, nil, PrecNone}
 	rules[token.String] = ParseRule{(*Parser).string, nil, PrecNone}
 	rules[token.Number] = ParseRule{(*Parser).number, nil, PrecNone}
-	rules[token.And] = ParseRule{nil, nil, PrecNone}
+	rules[token.And] = ParseRule{nil, (*Parser).and, PrecAnd}
 	rules[token.Class] = ParseRule{nil, nil, PrecNone}
 	rules[token.Else] = ParseRule{nil, nil, PrecNone}
 	rules[token.False] = ParseRule{(*Parser).literal, nil, PrecNone}
@@ -62,7 +62,7 @@ func init() {
 	rules[token.Fun] = ParseRule{nil, nil, PrecNone}
 	rules[token.If] = ParseRule{nil, nil, PrecNone}
 	rules[token.Nil] = ParseRule{(*Parser).literal, nil, PrecNone}
-	rules[token.Or] = ParseRule{nil, nil, PrecNone}
+	rules[token.Or] = ParseRule{nil, (*Parser).or, PrecOr}
 	rules[token.Print] = ParseRule{nil, nil, PrecNone}
 	rules[token.Return] = ParseRule{nil, nil, PrecNone}
 	rules[token.Super] = ParseRule{nil, nil, PrecNone}
@@ -155,8 +155,12 @@ func (p *Parser) declaration() {
 func (p *Parser) statement() {
 	if p.match(token.Print) {
 		p.printStatement()
+	} else if p.match(token.For) {
+		p.forStatement()
 	} else if p.match(token.If) {
 		p.ifStatement()
+	} else if p.match(token.While) {
+		p.whileStatement()
 	} else if p.match(token.LeftBrace) {
 		p.beginScope()
 		p.block()
@@ -170,6 +174,50 @@ func (p *Parser) printStatement() {
 	p.expression()
 	p.consume(token.Semicolon, []byte("Expect ';' after value."))
 	p.emitByte(opcode.Print)
+}
+
+func (p *Parser) forStatement() {
+	p.beginScope()
+	p.consume(token.LeftParen, []byte("Expect '(' after 'for'."))
+	if p.match(token.Semicolon) {
+		// No initializer.
+	} else if p.match(token.Var) {
+		p.varDeclaration()
+	} else {
+		p.expressionStatement()
+	}
+
+	loopStart := p.chunk.Count()
+	exitJump := -1
+	if !p.match(token.Semicolon) {
+		p.expression()
+		p.consume(token.Semicolon, []byte("Expect ';' after loop condition."))
+
+		exitJump = p.emitJump(opcode.JumpIfFalse)
+		p.emitByte(opcode.Pop)
+	}
+
+	if !p.match(token.RightParen) {
+		bodyJump := p.emitJump(opcode.Jump)
+		incrementStart := p.chunk.Count()
+		p.expression()
+		p.emitByte(opcode.Pop)
+		p.consume(token.RightParen, []byte("Expect ')' after for clauses."))
+
+		p.emitLoop(loopStart)
+		loopStart = incrementStart
+		p.patchJump(bodyJump)
+	}
+
+	p.statement()
+	p.emitLoop(loopStart)
+
+	if exitJump != -1 {
+		p.patchJump(exitJump)
+		p.emitByte(opcode.Pop)
+	}
+
+	p.endScope()
 }
 
 func (p *Parser) ifStatement() {
@@ -190,6 +238,21 @@ func (p *Parser) ifStatement() {
 		p.statement()
 	}
 	p.patchJump(elseJump)
+}
+
+func (p *Parser) whileStatement() {
+	loopStart := p.chunk.Count()
+	p.consume(token.LeftParen, []byte("Expect '(' after 'while'."))
+	p.expression()
+	p.consume(token.RightParen, []byte("Expect ')' after condition."))
+
+	exitJump := p.emitJump(opcode.JumpIfFalse)
+	p.emitByte(opcode.Pop)
+	p.statement()
+	p.emitLoop(loopStart)
+
+	p.patchJump(exitJump)
+	p.emitByte(opcode.Pop)
 }
 
 func (p *Parser) expressionStatement() {
@@ -252,6 +315,17 @@ func (p *Parser) number(canAssign bool) {
 		panic(err)
 	}
 	p.emitConstant(value.NumberVal(v))
+}
+
+func (p *Parser) or(canAssign bool) {
+	elseJump := p.emitJump(opcode.JumpIfFalse)
+	endJump := p.emitJump(opcode.Jump)
+
+	p.patchJump(elseJump)
+	p.emitByte(opcode.Pop)
+
+	p.parsePrecedence(PrecOr)
+	p.patchJump(endJump)
 }
 
 func (p *Parser) variable(canAssign bool) {
@@ -441,6 +515,15 @@ func (p *Parser) defineVariable(global int) {
 	p.chunk.WriteIndexWithCheck(global, opcode.DefineGlobal, p.previous.Line)
 }
 
+func (p *Parser) and(canAssign bool) {
+	endJump := p.emitJump(opcode.JumpIfFalse)
+
+	p.emitByte(opcode.Pop)
+	p.parsePrecedence(PrecAnd)
+
+	p.patchJump(endJump)
+}
+
 func (p *Parser) markInitialized() {
 	p.compiler.locals[p.compiler.localCount-1].depth = p.compiler.scopeDepth
 }
@@ -536,6 +619,18 @@ func (p *Parser) emitConstant(v value.Value) {
 	p.chunk.WriteIndexWithCheck(index, opcode.Constant, p.previous.Line)
 }
 
+func (p *Parser) emitLoop(loopStart int) {
+	p.emitByte(opcode.Loop)
+
+	offset := p.chunk.Count() - loopStart + 2
+	if offset > common.Uint16Max {
+		p.error([]byte("Loop body too large."))
+	}
+
+	p.emitByte(byte(offset >> 8))
+	p.emitByte(byte(offset))
+}
+
 func (p *Parser) emitJump(instruction byte) int {
 	p.emitByte(instruction)
 	p.emitByte(0xff)
@@ -546,7 +641,7 @@ func (p *Parser) emitJump(instruction byte) int {
 func (p *Parser) patchJump(offset int) {
 	jump := p.chunk.Count() - offset - 2
 
-	if jump > 0xffff {
+	if jump > common.Uint16Max {
 		p.error([]byte("Too much code to jump over."))
 	}
 

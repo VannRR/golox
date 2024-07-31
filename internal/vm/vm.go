@@ -263,6 +263,9 @@ func (vm *VM) run() InterpretResult {
 			if vm.peek(0).IsFalsey() {
 				vm.ip += offset
 			}
+		case opcode.Loop:
+			offset := vm.readShort()
+			vm.ip -= offset
 		case opcode.Return:
 			return InterpretOk
 		default:
@@ -360,8 +363,8 @@ func (vm *VM) readIndex(op byte) int {
 	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong,
 		opcode.SetGlobalLong, opcode.GetLocalLong, opcode.SetLocalLong:
 		index := uint32(vm.readByte()) << 16
-		index += uint32(vm.readByte()) << 8
-		index += uint32(vm.readByte())
+		index |= uint32(vm.readByte()) << 8
+		index |= uint32(vm.readByte())
 		return int(index)
 	default:
 		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readIndex(op).", opcode.Name(op))

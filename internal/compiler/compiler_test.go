@@ -142,17 +142,43 @@ func Test_printStatement(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
+func Test_forStatement(t *testing.T) {
+	p := setupParserForTest("")
+
+	p.forStatement()
+
+	expectedOpcodes := []byte{
+		opcode.Pop,
+		opcode.JumpIfFalse,
+		opcode.Constant, 12,
+		opcode.Pop,
+		opcode.Jump,
+		opcode.Constant, 4,
+		opcode.Pop,
+		opcode.Loop,
+		opcode.Constant, 11,
+		opcode.Pop,
+		opcode.Loop,
+		opcode.Constant, 8,
+		opcode.Pop,
+	}
+
+	expectedConstants := []value.Value{}
+
+	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+
+	checkConstants(t, p.chunk.Constants, expectedConstants)
+}
+
 func Test_ifStatement(t *testing.T) {
-	input := "if (true);"
-	p := setupParserForTest(input)
+	p := setupParserForTest("")
 
 	p.ifStatement()
 
 	expectedOpcodes := []byte{
 		opcode.JumpIfFalse,
-		opcode.Constant, 6,
+		opcode.Constant, 5,
 		opcode.Pop,
-		opcode.True,
 		opcode.Pop,
 		opcode.Jump,
 		opcode.Constant, 1,
@@ -166,15 +192,27 @@ func Test_ifStatement(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
-func Test_ifStatement_MissingParen(t *testing.T) {
-	input := "if (true;"
-	p := setupParserForTest(input)
+func Test_whileStatement(t *testing.T) {
+	p := setupParserForTest("while (false) print 1;")
 
-	p.ifStatement()
+	p.whileStatement()
 
-	if !p.hadError {
-		t.Error("Expected error for missing parenthesis with if statement.")
+	expectedOpcodes := []byte{
+		opcode.JumpIfFalse,
+		opcode.Constant, 6,
+		opcode.Pop,
+		opcode.False,
+		opcode.Pop,
+		opcode.Loop,
+		opcode.Constant, 9,
+		opcode.Pop,
 	}
+
+	expectedConstants := []value.Value{}
+
+	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+
+	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
 func Test_varDeclaration(t *testing.T) {
@@ -219,15 +257,25 @@ func Test_expression(t *testing.T) {
 }
 
 func Test_block(t *testing.T) {
-	p := setupParserForTest("{1}")
+	p := setupParserForTest("{var foo = 1;}")
 
 	p.block()
 
 	expectedOpcodes := []byte{
 		opcode.Pop,
+		opcode.Constant, 0,
+		opcode.Constant, 1,
+		opcode.DefineGlobal, 0,
 	}
 
-	expectedConstants := []value.Value{}
+	expectedConstants := []value.Value{
+		value.StringVal("foo"),
+		value.NumberVal(1),
+	}
+
+	if p.panicMode {
+		t.Error("Expected no panic from block")
+	}
 
 	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
 
@@ -235,12 +283,12 @@ func Test_block(t *testing.T) {
 }
 
 func Test_block_fail(t *testing.T) {
-	p := setupParserForTest("{1")
+	p := setupParserForTest("{var foo = 1;")
 
 	p.block()
 
 	if !p.panicMode {
-		t.Error("Expected panic from block without '{'.")
+		t.Error("Expected panic from block without '}'.")
 	}
 }
 
@@ -279,6 +327,26 @@ func Test_number(t *testing.T) {
 	expectedConstants := []value.Value{
 		value.NumberVal(input),
 	}
+
+	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+
+	checkConstants(t, p.chunk.Constants, expectedConstants)
+}
+
+func Test_or(t *testing.T) {
+	p := setupParserForTest("")
+
+	p.or(false)
+
+	expectedOpcodes := []byte{
+		opcode.JumpIfFalse,
+		opcode.Constant, 3,
+		opcode.Jump,
+		opcode.Constant, 1,
+		opcode.Pop,
+	}
+
+	expectedConstants := []value.Value{}
 
 	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
 
@@ -596,6 +664,24 @@ func Test_defineVariable(t *testing.T) {
 	checkConstants(t, p.chunk.Constants, expectedConstants)
 }
 
+func Test_and(t *testing.T) {
+	p := setupParserForTest("")
+
+	p.and(false)
+
+	expectedOpcodes := []byte{
+		opcode.JumpIfFalse,
+		opcode.Constant, 1,
+		opcode.Pop,
+	}
+
+	expectedConstants := []value.Value{}
+
+	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
+
+	checkConstants(t, p.chunk.Constants, expectedConstants)
+}
+
 func Test_error(t *testing.T) {
 	p := setupParserForTest("wow")
 
@@ -719,6 +805,23 @@ func Test_emitConstant(t *testing.T) {
 	p.emitConstant(con)
 
 	checkConstants(t, p.chunk.Constants, []value.Value{con})
+}
+
+func Test_emitLoop(t *testing.T) {
+	p := setupParserForTest("")
+	p.chunk.Code = append(p.chunk.Code, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	loopStart := 5
+
+	expected := p.chunk.Count() - loopStart + 2
+
+	p.emitLoop(loopStart)
+
+	result := int(p.chunk.Code[13]) << 8
+	result |= int(p.chunk.Code[14] - 1)
+
+	if result != expected {
+		t.Errorf("Expected %v, got %v", expected, result)
+	}
 }
 
 func Test_emitJump(t *testing.T) {

@@ -203,6 +203,21 @@ func Test_run(t *testing.T) {
 			expected: InterpretOk,
 		},
 		{
+			name:     "for i < 3 loop",
+			source:   "for (var i = 0; i < 3; i = i + 1) print i;",
+			expected: InterpretOk,
+		},
+		{
+			name:     "while false loop",
+			source:   "while (false) print 1;",
+			expected: InterpretOk,
+		},
+		{
+			name:     "while i < 3 loop",
+			source:   "var i = 0; while (i < 3) i = i + 1; print i;",
+			expected: InterpretOk,
+		},
+		{
 			name:     "operands must be two numbers or two strings",
 			source:   "123 + true;",
 			expected: InterpretRuntimeError,

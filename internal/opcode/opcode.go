@@ -33,6 +33,7 @@ const (
 	Print
 	Jump
 	JumpIfFalse
+	Loop
 	Return
 )
 
@@ -102,6 +103,8 @@ func Name(op byte) string {
 		return "OpJump"
 	case JumpIfFalse:
 		return "OpJumpIfFalse"
+	case Loop:
+		return "OpLoop"
 	case Return:
 		return "OpReturn"
 	default:
