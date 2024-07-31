@@ -29,7 +29,7 @@ func Test_push(t *testing.T) {
 
 	top := vm.stack[vm.stackTop-1]
 	if top != val {
-		t.Errorf("Expected popped value to be %v, got %v", val, top)
+		t.Errorf("Expected pushed value to be %v, got %v", val, top)
 	}
 }
 
@@ -363,10 +363,10 @@ func checkBinaryOp(t *testing.T, a int, b int, operation byte, expected value.Va
 
 	actual, popResult := vm.pop()
 	if popResult != InterpretNoResult {
-		t.Fatalf("Expected no underflow with push")
+		t.Fatalf("Expected no underflow with pop")
 	}
 
 	if actual != expected {
-		t.Errorf("Expected (%v %v %v) == %v, got %v", a, opcode.Name(operation), b, expected, actual)
+		t.Errorf("Expected (%v %v %v) == %v, got %v", a, opcode.Name[operation], b, expected, actual)
 	}
 }

@@ -28,23 +28,23 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 
 	switch op := c.Code[offset]; op {
 	case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal, opcode.SetGlobal:
-		return constantInstruction(opcode.Name(op), c, offset)
+		return constantInstruction(opcode.Name[op], c, offset)
 	case opcode.ConstantLong, opcode.DefineGlobalLong, opcode.GetGlobalLong, opcode.SetGlobalLong:
-		return constantLongInstruction(opcode.Name(op), c, offset)
+		return constantLongInstruction(opcode.Name[op], c, offset)
 	case opcode.Nil, opcode.True, opcode.False, opcode.Pop,
 		opcode.Equal, opcode.NotEqual, opcode.Greater, opcode.GreaterEqual,
 		opcode.Less, opcode.LessEqual, opcode.Add, opcode.Subtract,
 		opcode.Multiply, opcode.Divide, opcode.Not, opcode.Modulo,
 		opcode.Negate, opcode.Print, opcode.Return:
-		return simpleInstruction(opcode.Name(op), offset)
+		return simpleInstruction(opcode.Name[op], offset)
 	case opcode.GetLocal, opcode.SetLocal:
-		return byteInstruction(opcode.Name(op), c, offset)
+		return byteInstruction(opcode.Name[op], c, offset)
 	case opcode.GetLocalLong, opcode.SetLocalLong:
-		return byteInstructionLong(opcode.Name(op), c, offset)
+		return byteInstructionLong(opcode.Name[op], c, offset)
 	case opcode.Jump, opcode.JumpIfFalse:
-		return jumpInstruction(opcode.Name(op), 1, c, offset)
+		return jumpInstruction(opcode.Name[op], 1, c, offset)
 	case opcode.Loop:
-		return jumpInstruction(opcode.Name(op), -1, c, offset)
+		return jumpInstruction(opcode.Name[op], -1, c, offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", op)
 		return offset + 1

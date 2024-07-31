@@ -102,8 +102,14 @@ func expectConstantCount(t *testing.T, ch *Chunk, count int) {
 
 func expectOpCodeAtIndex(t *testing.T, ch *Chunk, op byte, index int) {
 	t.Helper()
-	if ch.Code[index] != op {
-		t.Errorf("Expected opcode '%v', got '%v'.", opcode.Name(op), opcode.Name(ch.Code[index]))
+	actual := ch.Code[index]
+	if actual != op {
+		name, exists := opcode.Name[actual]
+		if !exists {
+			t.Errorf("Unknown opcode '%v'.", actual)
+		} else {
+			t.Errorf("Expected opcode '%v', got '%v'.", opcode.Name[op], name)
+		}
 	}
 }
 

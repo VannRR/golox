@@ -367,7 +367,7 @@ func (vm *VM) readIndex(op byte) int {
 		index |= uint32(vm.readByte())
 		return int(index)
 	default:
-		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readIndex(op).", opcode.Name(op))
+		msg := fmt.Sprintf("Invalid opcode '%v' for function vm.readIndex(op).", opcode.Name[op])
 		panic(msg)
 	}
 }

@@ -149,17 +149,13 @@ func Test_forStatement(t *testing.T) {
 
 	expectedOpcodes := []byte{
 		opcode.Pop,
-		opcode.JumpIfFalse,
-		opcode.Constant, 12,
+		opcode.JumpIfFalse, 0, 12,
 		opcode.Pop,
-		opcode.Jump,
-		opcode.Constant, 4,
+		opcode.Jump, 0, 4,
 		opcode.Pop,
-		opcode.Loop,
-		opcode.Constant, 11,
+		opcode.Loop, 0, 11,
 		opcode.Pop,
-		opcode.Loop,
-		opcode.Constant, 8,
+		opcode.Loop, 0, 8,
 		opcode.Pop,
 	}
 
@@ -176,12 +172,10 @@ func Test_ifStatement(t *testing.T) {
 	p.ifStatement()
 
 	expectedOpcodes := []byte{
-		opcode.JumpIfFalse,
-		opcode.Constant, 5,
+		opcode.JumpIfFalse, 0, 5,
 		opcode.Pop,
 		opcode.Pop,
-		opcode.Jump,
-		opcode.Constant, 1,
+		opcode.Jump, 0, 1,
 		opcode.Pop,
 	}
 
@@ -198,13 +192,11 @@ func Test_whileStatement(t *testing.T) {
 	p.whileStatement()
 
 	expectedOpcodes := []byte{
-		opcode.JumpIfFalse,
-		opcode.Constant, 6,
+		opcode.JumpIfFalse, 0, 6,
 		opcode.Pop,
 		opcode.False,
 		opcode.Pop,
-		opcode.Loop,
-		opcode.Constant, 9,
+		opcode.Loop, 0, 9,
 		opcode.Pop,
 	}
 
@@ -339,10 +331,8 @@ func Test_or(t *testing.T) {
 	p.or(false)
 
 	expectedOpcodes := []byte{
-		opcode.JumpIfFalse,
-		opcode.Constant, 3,
-		opcode.Jump,
-		opcode.Constant, 1,
+		opcode.JumpIfFalse, 0, 3,
+		opcode.Jump, 0, 1,
 		opcode.Pop,
 	}
 
@@ -670,8 +660,7 @@ func Test_and(t *testing.T) {
 	p.and(false)
 
 	expectedOpcodes := []byte{
-		opcode.JumpIfFalse,
-		opcode.Constant, 1,
+		opcode.JumpIfFalse, 0, 1,
 		opcode.Pop,
 	}
 
@@ -740,7 +729,7 @@ func Test_advance(t *testing.T) {
 
 func Test_consume(t *testing.T) {
 	input := "123"
-	msg := []byte("test error")
+	msg := []byte("test consume error")
 	p := setupParserForTest(input)
 
 	p.current = p.lexer.ScanToken()
@@ -833,7 +822,7 @@ func Test_emitJump(t *testing.T) {
 	opResult := p.chunk.Code[0]
 
 	if opResult != instruction {
-		t.Errorf("Expected %v, got %v", opcode.Name(instruction), opcode.Name(opResult))
+		t.Errorf("Expected %v, got %v", opcode.Name[instruction], opcode.Name[opResult])
 	}
 
 	expected := p.chunk.Count() - 2
@@ -885,18 +874,32 @@ func checkOpcodes(t *testing.T, actual []byte, expected []byte) {
 	}
 
 	for i := 0; i < gotLen; i++ {
-		switch expected[i] {
-		case opcode.Constant, opcode.DefineGlobal, opcode.GetGlobal:
-			if actual[i] != expected[i] {
-				t.Errorf("Expected opcode '%v' at index %v, got '%v'.", opcode.Name(expected[i]), i, opcode.Name(actual[i]))
+		actName, actExists := opcode.Name[actual[i]]
+		expName, expExists := opcode.Name[expected[i]]
+		if !actExists || !expExists {
+			if !actExists {
+				t.Errorf("Unknown opcode '%v' at code index %v of actual slice.", actual[i], i)
 			}
-			i++
-			if actual[i] != expected[i] {
-				t.Errorf("Expected constant index '%v', got '%v'.", expected[i], actual[i])
+			if !expExists {
+				t.Errorf("Unknown opcode '%v' at code index %v of expected slice.", expected[i], i)
 			}
-		default:
+		} else {
 			if actual[i] != expected[i] {
-				t.Errorf("Expected opcode '%v' at index %v, got '%v'.", opcode.Name(expected[i]), i, opcode.Name(actual[i]))
+				t.Errorf("Expected opcode '%v' at code index %v, got '%v'.", expName, i, actName)
+			} else {
+				switch expected[i] {
+				case opcode.Constant, opcode.GetLocal, opcode.SetLocal,
+					opcode.GetGlobal, opcode.DefineGlobal, opcode.SetGlobal:
+					i++
+					if actual[i] != expected[i] {
+						t.Errorf("Expected var index %v at code index %v, got var index %v.", expected[i], i, actual[i])
+					}
+				case opcode.Loop, opcode.Jump, opcode.JumpIfFalse:
+					i += 2
+					if actual[i] != expected[i] {
+						t.Errorf("Expected jump index %v at code index %v, got jump index %v.", expected[i], i, actual[i])
+					}
+				}
 			}
 		}
 	}

@@ -6,9 +6,9 @@ import (
 )
 
 func Test_Name(t *testing.T) {
-	var i byte = 0
-	for ; i < opcode.Return; i++ {
-		if opcode.Name(i) == "OpUnknown" {
+	for i := byte(0); i < opcode.Return; i++ {
+	  _, exists := opcode.Name[i]
+		if !exists {
 			t.Errorf("Opcode '%v' is unknown.", i)
 		}
 	}
