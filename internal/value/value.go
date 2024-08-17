@@ -5,22 +5,25 @@ import (
 )
 
 type Value interface {
+	IsType(Value) bool
 	IsEqual(Value) bool
 	IsFalsey() bool
 	IsBool() bool
 	IsNil() bool
 	IsNumber() bool
 	IsString() bool
-	AsBool() bool
-	AsNumber() float64
-	AsString() string
+	IsFunction() bool
 	Stringify() string
 }
 
 type NilVal struct{}
 
-func (a NilVal) IsEqual(b Value) bool {
-	return b.IsNil()
+func (n NilVal) IsType(other Value) bool {
+	return other.IsNil()
+}
+
+func (n NilVal) IsEqual(other Value) bool {
+	return other.IsNil()
 }
 
 func (n NilVal) IsFalsey() bool {
@@ -43,16 +46,8 @@ func (n NilVal) IsString() bool {
 	return false
 }
 
-func (n NilVal) AsBool() bool {
-	panic("Expected BoolVal, got NilVal")
-}
-
-func (n NilVal) AsNumber() float64 {
-	panic("Expected NumberVal, got NilVal")
-}
-
-func (n NilVal) AsString() string {
-	panic("Expected StringVal, got NilVal")
+func (n NilVal) IsFunction() bool {
+	return false
 }
 
 func (n NilVal) Stringify() string {
@@ -61,11 +56,15 @@ func (n NilVal) Stringify() string {
 
 type BoolVal bool
 
-func (a BoolVal) IsEqual(b Value) bool {
-	if !b.IsBool() {
+func (b BoolVal) IsType(other Value) bool {
+	return other.IsBool()
+}
+
+func (b BoolVal) IsEqual(other Value) bool {
+	if !other.IsBool() {
 		return false
 	}
-	return a.AsBool() == b.AsBool()
+	return b == other.(BoolVal)
 }
 
 func (b BoolVal) IsFalsey() bool {
@@ -88,20 +87,12 @@ func (b BoolVal) IsString() bool {
 	return false
 }
 
-func (b BoolVal) AsBool() bool {
-	return bool(b)
-}
-
-func (b BoolVal) AsNumber() float64 {
-	panic("Expected NumberVal, got BoolVal")
-}
-
-func (b BoolVal) AsString() string {
-	panic("Expected StringVal, got BoolVal")
+func (b BoolVal) IsFunction() bool {
+	return false
 }
 
 func (b BoolVal) Stringify() string {
-	if b.AsBool() {
+	if bool(b) {
 		return "true"
 	} else {
 		return "false"
@@ -110,11 +101,15 @@ func (b BoolVal) Stringify() string {
 
 type NumberVal float64
 
-func (a NumberVal) IsEqual(b Value) bool {
-	if !b.IsNumber() {
+func (n NumberVal) IsType(other Value) bool {
+	return other.IsNumber()
+}
+
+func (n NumberVal) IsEqual(other Value) bool {
+	if !other.IsNumber() {
 		return false
 	}
-	return a.AsNumber() == b.AsNumber()
+	return n == other.(NumberVal)
 }
 
 func (n NumberVal) IsFalsey() bool {
@@ -137,65 +132,12 @@ func (n NumberVal) IsString() bool {
 	return false
 }
 
-func (n NumberVal) AsBool() bool {
-	panic("Expected BoolVal, got NumberVal")
-}
-
-func (n NumberVal) AsNumber() float64 {
-	return float64(n)
-}
-
-func (n NumberVal) AsString() string {
-	panic("Expected StringVal, got NumberVal")
+func (n NumberVal) IsFunction() bool {
+	return false
 }
 
 func (n NumberVal) Stringify() string {
-	return fmt.Sprintf("%v", n.AsNumber())
-}
-
-type StringVal string
-
-func (a StringVal) IsEqual(b Value) bool {
-	if !b.IsString() {
-		return false
-	}
-	return a.AsString() == b.AsString()
-}
-
-func (s StringVal) IsFalsey() bool {
-	return false
-}
-
-func (s StringVal) IsBool() bool {
-	return false
-}
-
-func (s StringVal) IsNil() bool {
-	return false
-}
-
-func (s StringVal) IsNumber() bool {
-	return false
-}
-
-func (s StringVal) IsString() bool {
-	return true
-}
-
-func (s StringVal) AsBool() bool {
-	panic("Expected BoolVal, got StringVal")
-}
-
-func (s StringVal) AsNumber() float64 {
-	panic("Expected NumberVal, got StringVal")
-}
-
-func (s StringVal) AsString() string {
-	return string(s)
-}
-
-func (s StringVal) Stringify() string {
-	return s.AsString()
+	return fmt.Sprint(n)
 }
 
 type ValueArray []Value

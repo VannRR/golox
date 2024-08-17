@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golox/internal/chunk"
 	"golox/internal/lexer"
+	"golox/internal/object"
 	"golox/internal/opcode"
 	"golox/internal/token"
 	"golox/internal/value"
@@ -101,14 +102,14 @@ func Test_Compile(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal("foo"),
+		object.ObjString("foo"),
 		value.NumberVal(1),
 		value.NumberVal(0.3),
 		value.NumberVal(20),
 		value.NumberVal(2),
 		value.NumberVal(11),
-		value.StringVal("bar"),
-		value.StringVal("foo"),
+		object.ObjString("bar"),
+		object.ObjString("foo"),
 		value.NumberVal(3),
 	}
 
@@ -134,7 +135,7 @@ func Test_printStatement(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal(input),
+		object.ObjString(input),
 	}
 
 	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
@@ -219,7 +220,7 @@ func Test_varDeclaration(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal(""),
+		object.ObjString(""),
 	}
 
 	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
@@ -261,7 +262,7 @@ func Test_block(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal("foo"),
+		object.ObjString("foo"),
 		value.NumberVal(1),
 	}
 
@@ -362,10 +363,10 @@ func Test_variable_get(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal("wow"),
+		object.ObjString("wow"),
 		value.NumberVal(1),
-		value.StringVal("foo"),
-		value.StringVal("wow"),
+		object.ObjString("foo"),
+		object.ObjString("wow"),
 		value.NumberVal(1),
 	}
 
@@ -391,9 +392,9 @@ func Test_variable_set(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal("wow"),
+		object.ObjString("wow"),
 		value.NumberVal(1),
-		value.StringVal("wow"),
+		object.ObjString("wow"),
 		value.NumberVal(2),
 	}
 
@@ -456,7 +457,7 @@ func Test_string(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal("wow"),
+		object.ObjString("wow"),
 	}
 
 	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
@@ -595,7 +596,7 @@ func Test_parseVariable(t *testing.T) {
 	}
 
 	expectedConstants := []value.Value{
-		value.StringVal(input),
+		object.ObjString(input),
 	}
 
 	checkOpcodes(t, p.chunk.Code, expectedOpcodes)
@@ -892,12 +893,16 @@ func checkOpcodes(t *testing.T, actual []byte, expected []byte) {
 					opcode.GetGlobal, opcode.DefineGlobal, opcode.SetGlobal:
 					i++
 					if actual[i] != expected[i] {
-						t.Errorf("Expected var index %v at code index %v, got var index %v.", expected[i], i, actual[i])
+						t.Errorf("Expected %v with value %v at code index %v, got value %v.", expName, expected[i], i, actual[i])
 					}
 				case opcode.Loop, opcode.Jump, opcode.JumpIfFalse:
+					actIndex := int(actual[i+1]) << 8
+					actIndex |= int(actual[i+2])
+					expIndex := int(expected[i+1]) << 8
+					expIndex |= int(expected[i+2])
 					i += 2
-					if actual[i] != expected[i] {
-						t.Errorf("Expected jump index %v at code index %v, got jump index %v.", expected[i], i, actual[i])
+					if actIndex != expIndex {
+						t.Errorf("Expected %v with value %v at code index %v, got value %v.", expName, expIndex, i, actIndex)
 					}
 				}
 			}

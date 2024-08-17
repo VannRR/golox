@@ -6,6 +6,7 @@ import (
 	"golox/internal/common"
 	"golox/internal/compiler"
 	"golox/internal/debug"
+	"golox/internal/object"
 	"golox/internal/opcode"
 	"golox/internal/value"
 	"os"
@@ -126,7 +127,7 @@ func (vm *VM) run() InterpretResult {
 			slot := vm.readIndex(instruction)
 			vm.stack[slot] = vm.peek(slot)
 		case opcode.GetGlobal, opcode.GetGlobalLong:
-			name := vm.readConstant(instruction).AsString()
+			name := vm.readConstant(instruction).Stringify()
 			val, exists := vm.globals[name]
 			_, popResult := vm.pop()
 			if popResult != InterpretNoResult {
@@ -141,14 +142,14 @@ func (vm *VM) run() InterpretResult {
 				return popResult
 			}
 		case opcode.DefineGlobal, opcode.DefineGlobalLong:
-			name := vm.readConstant(instruction).AsString()
+			name := vm.readConstant(instruction).Stringify()
 			val, popResult := vm.pop()
 			if popResult != InterpretNoResult {
 				return popResult
 			}
 			vm.globals[name] = val
 		case opcode.SetGlobal, opcode.SetGlobalLong:
-			name := vm.readConstant(instruction).AsString()
+			name := vm.readConstant(instruction).Stringify()
 			_, exists := vm.globals[name]
 			if exists {
 				val, popResult := vm.pop()
@@ -187,38 +188,9 @@ func (vm *VM) run() InterpretResult {
 				return pushResult
 			}
 		case opcode.Add:
-			a := vm.peek(1)
-			b := vm.peek(0)
-			if a.IsString() && b.IsString() {
-				valB, popResultB := vm.pop()
-				if popResultB != InterpretNoResult {
-					return popResultB
-				}
-				valA, popResultA := vm.pop()
-				if popResultA != InterpretNoResult {
-					return popResultA
-				}
-				pushResult := vm.push(value.StringVal(valA.AsString() + valB.AsString()))
-				if pushResult != InterpretNoResult {
-					return pushResult
-				}
-			} else if a.IsNumber() && b.IsNumber() {
-				valB, popResultB := vm.pop()
-				if popResultB != InterpretNoResult {
-					return popResultB
-				}
-				valA, popResultA := vm.pop()
-				if popResultA != InterpretNoResult {
-					return popResultA
-				}
-				pushResult := vm.push(value.NumberVal(valA.AsNumber() + valB.AsNumber()))
-				if pushResult != InterpretNoResult {
-					return pushResult
-				}
-			} else {
-				vm.runtimeError(
-					"Operands must be two numbers or two strings.")
-				return InterpretRuntimeError
+			result := vm.add()
+			if result != InterpretNoResult {
+				return result
 			}
 		case opcode.Greater, opcode.GreaterEqual, opcode.Less, opcode.LessEqual,
 			opcode.Subtract, opcode.Multiply, opcode.Divide, opcode.Modulo:
@@ -244,7 +216,7 @@ func (vm *VM) run() InterpretResult {
 				if popResult != InterpretNoResult {
 					return popResult
 				}
-				pushResult := vm.push(value.NumberVal(-val.AsNumber()))
+				pushResult := vm.push(value.NumberVal(-val.(value.NumberVal)))
 				if pushResult != InterpretNoResult {
 					return pushResult
 				}
@@ -275,6 +247,40 @@ func (vm *VM) run() InterpretResult {
 	}
 }
 
+func (vm *VM) add() InterpretResult {
+	a := vm.peek(1)
+	b := vm.peek(0)
+
+	if !a.IsType(b) {
+		vm.runtimeError("Operands must be of the same type.")
+		return InterpretRuntimeError
+	}
+
+	valB, popResultB := vm.pop()
+	if popResultB != InterpretNoResult {
+		return popResultB
+	}
+	valA, popResultA := vm.pop()
+	if popResultA != InterpretNoResult {
+		return popResultA
+	}
+
+	switch a.(type) {
+	case object.ObjString:
+		pushResult := vm.push(object.ObjString(valA.(object.ObjString) + valB.(object.ObjString)))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
+	case value.NumberVal:
+		pushResult := vm.push(value.NumberVal(valA.(value.NumberVal) + valB.(value.NumberVal)))
+		if pushResult != InterpretNoResult {
+			return pushResult
+		}
+	}
+
+	return InterpretNoResult
+}
+
 func (vm *VM) binaryOP(operator byte) InterpretResult {
 	if !vm.peek(0).IsNumber() || !vm.peek(1).IsNumber() {
 		vm.runtimeError("Operands must be numbers.")
@@ -292,42 +298,42 @@ func (vm *VM) binaryOP(operator byte) InterpretResult {
 
 	switch operator {
 	case opcode.Greater:
-		pushResult := vm.push(value.BoolVal(valA.AsNumber() > valB.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.(value.NumberVal) > valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.GreaterEqual:
-		pushResult := vm.push(value.BoolVal(valA.AsNumber() >= valB.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.(value.NumberVal) >= valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.Less:
-		pushResult := vm.push(value.BoolVal(valA.AsNumber() < valB.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.(value.NumberVal) < valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.LessEqual:
-		pushResult := vm.push(value.BoolVal(valA.AsNumber() <= valB.AsNumber()))
+		pushResult := vm.push(value.BoolVal(valA.(value.NumberVal) <= valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.Subtract:
-		pushResult := vm.push(value.NumberVal(valA.AsNumber() - valB.AsNumber()))
+		pushResult := vm.push(value.NumberVal(valA.(value.NumberVal) - valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.Multiply:
-		pushResult := vm.push(value.NumberVal(valA.AsNumber() * valB.AsNumber()))
+		pushResult := vm.push(value.NumberVal(valA.(value.NumberVal) * valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.Divide:
-		pushResult := vm.push(value.NumberVal(valA.AsNumber() / valB.AsNumber()))
+		pushResult := vm.push(value.NumberVal(valA.(value.NumberVal) / valB.(value.NumberVal)))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
 	case opcode.Modulo:
-		pushResult := vm.push(value.NumberVal(float64(int(valA.AsNumber()) % int(valB.AsNumber()))))
+		pushResult := vm.push(value.NumberVal(float64(int(valA.(value.NumberVal)) % int(valB.(value.NumberVal)))))
 		if pushResult != InterpretNoResult {
 			return pushResult
 		}
@@ -352,7 +358,6 @@ func (vm *VM) readShort() int {
 func (vm *VM) readConstant(op byte) value.Value {
 	index := vm.readIndex(op)
 	return vm.chunk.Constants[index]
-
 }
 
 func (vm *VM) readIndex(op byte) int {

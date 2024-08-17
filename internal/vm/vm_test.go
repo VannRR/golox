@@ -2,6 +2,7 @@ package vm
 
 import (
 	"golox/internal/chunk"
+	"golox/internal/object"
 	"golox/internal/opcode"
 	"golox/internal/value"
 	"testing"
@@ -329,6 +330,70 @@ func Test_readIndex_Long(t *testing.T) {
 
 	if actual != expected {
 		t.Errorf("Expected %v, but got %v", expected, actual)
+	}
+}
+
+func Test_add_numbers(t *testing.T) {
+	vm := NewVM()
+	a := 1
+	b := 3
+	vm.push(value.NumberVal(a))
+	vm.push(value.NumberVal(b))
+
+	result := vm.add()
+
+	if result != InterpretNoResult {
+		t.Errorf("Expected InterpretNoResult, got %v", result)
+	}
+
+	expected := value.NumberVal(a + b)
+
+	actual, popResult := vm.pop()
+	if popResult != InterpretNoResult {
+		t.Fatalf("Expected no underflow with pop")
+	}
+
+	if actual != expected {
+		t.Errorf("Expected (%v + %v) == %v, got %v", a, b, expected, actual)
+	}
+}
+
+func Test_add_strings(t *testing.T) {
+	vm := NewVM()
+	a := "foo"
+	b := "bar"
+	vm.push(object.ObjString(a))
+	vm.push(object.ObjString(b))
+
+	result := vm.add()
+
+	if result != InterpretNoResult {
+		t.Errorf("Expected InterpretNoResult, got %v", result)
+	}
+
+	expected := object.ObjString(a + b)
+
+	actual, popResult := vm.pop()
+	if popResult != InterpretNoResult {
+		t.Fatalf("Expected no underflow with pop")
+	}
+
+	if actual != expected {
+		t.Errorf("Expected (%v + %v) == %v, got %v", a, b, expected, actual)
+	}
+}
+
+func Test_add_error(t *testing.T) {
+	vm := NewVM()
+	a := "foo"
+	b := 1
+	vm.push(object.ObjString(a))
+	vm.push(value.NumberVal(b))
+
+	result := vm.add()
+
+	if result != InterpretRuntimeError {
+		t.Errorf("Expected InterpretRuntimeError, got %v", result)
 	}
 }
 

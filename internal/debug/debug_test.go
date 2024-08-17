@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"golox/internal/chunk"
 	"golox/internal/debug"
+	"golox/internal/object"
 	"golox/internal/opcode"
 	"golox/internal/value"
 	"io"
@@ -20,7 +21,7 @@ func TestDisassembleInstruction(t *testing.T) {
 			opcode.Add,
 			opcode.Modulo,
 		},
-		Constants: []value.Value{value.StringVal("Hello, World!")},
+		Constants: []value.Value{object.ObjString("Hello, World!")},
 	}
 
 	tests := []struct {

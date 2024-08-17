@@ -7,6 +7,7 @@ import (
 	"golox/internal/common"
 	"golox/internal/debug"
 	"golox/internal/lexer"
+	"golox/internal/object"
 	"golox/internal/opcode"
 	"golox/internal/token"
 	"golox/internal/value"
@@ -366,7 +367,7 @@ func (p *Parser) resolveLocal(name *token.Token) int {
 }
 
 func (p *Parser) string(canAssign bool) {
-	p.emitConstant(value.StringVal(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
+	p.emitConstant(object.ObjString(string(p.previous.Lexeme)[1 : len(p.previous.Lexeme)-1]))
 }
 
 func (p *Parser) binary(canAssign bool) {
@@ -465,7 +466,7 @@ func (p *Parser) parseVariable(errorMessage []byte) int {
 }
 
 func (p *Parser) identifierConstant(name *token.Token) int {
-	index := p.chunk.AddConstant(value.StringVal(string(name.Lexeme)))
+	index := p.chunk.AddConstant(object.ObjString(string(name.Lexeme)))
 	p.chunk.WriteIndexWithCheck(index, opcode.Constant, p.current.Line)
 	return index
 }
