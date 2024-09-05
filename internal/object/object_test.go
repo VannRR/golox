@@ -49,14 +49,14 @@ func Test_ObjString_Stringify(t *testing.T) {
 	bar := ObjString("bar")
 
 	expectedFooString := "foo"
-	actualFooString := foo.Stringify()
+	actualFooString := foo.String()
 
 	if actualFooString != expectedFooString {
 		t.Errorf("Expected Stringify to return \"%s\" for ObjString 'foo', but got \"%s\"", expectedFooString, actualFooString)
 	}
 
 	expectedBarString := "bar"
-	actualBarString := bar.Stringify()
+	actualBarString := bar.String()
 
 	if actualBarString != expectedBarString {
 		t.Errorf("Expected Stringify to return \"%s\" for ObjString 'bar', but got \"%s\"", expectedBarString, actualBarString)
@@ -111,14 +111,14 @@ func Test_ObjFunction_Stringify(t *testing.T) {
 	bar.name = "bar"
 
 	expectedFooString := "<fn foo>"
-	actualFooString := foo.Stringify()
+	actualFooString := foo.String()
 
 	if actualFooString != expectedFooString {
 		t.Errorf("Expected Stringify to return \"%s\" for ObjFunction 'foo', but got \"%s\"", expectedFooString, actualFooString)
 	}
 
 	expectedBarString := "<fn bar>"
-	actualBarString := bar.Stringify()
+	actualBarString := bar.String()
 
 	if actualBarString != expectedBarString {
 		t.Errorf("Expected Stringify to return \"%s\" for ObjFunction 'bar', but got \"%s\"", expectedBarString, actualBarString)

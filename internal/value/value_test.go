@@ -42,7 +42,7 @@ func Test_NilVal_Stringify(t *testing.T) {
 	nilValue := NilVal{}
 
 	expectedString := "nil"
-	actualString := nilValue.Stringify()
+	actualString := nilValue.String()
 
 	if actualString != expectedString {
 		t.Errorf("Expected Stringify to return \"%s\", but got \"%s\"", expectedString, actualString)
@@ -98,14 +98,14 @@ func Test_BoolVal_Stringify(t *testing.T) {
 	falseValue := BoolVal(false)
 
 	expectedTrueString := "true"
-	actualTrueString := trueValue.Stringify()
+	actualTrueString := trueValue.String()
 
 	if actualTrueString != expectedTrueString {
 		t.Errorf("Expected Stringify to return \"%s\" for true BoolVal, but got \"%s\"", expectedTrueString, actualTrueString)
 	}
 
 	expectedFalseString := "false"
-	actualFalseString := falseValue.Stringify()
+	actualFalseString := falseValue.String()
 
 	if actualFalseString != expectedFalseString {
 		t.Errorf("Expected Stringify to return \"%s\" for false BoolVal, but got \"%s\"", expectedFalseString, actualFalseString)
@@ -156,14 +156,14 @@ func Test_NumberVal_Stringify(t *testing.T) {
 	two := NumberVal(2)
 
 	expectedOneString := "1"
-	actualOneString := one.Stringify()
+	actualOneString := one.String()
 
 	if actualOneString != expectedOneString {
 		t.Errorf("Expected Stringify to return \"%s\" for NumberVal 1, but got \"%s\"", expectedOneString, actualOneString)
 	}
 
 	expectedTwoString := "2"
-	actualTwoString := two.Stringify()
+	actualTwoString := two.String()
 
 	if actualTwoString != expectedTwoString {
 		t.Errorf("Expected Stringify to return \"%s\" for NumberVal 2, but got \"%s\"", expectedTwoString, actualTwoString)

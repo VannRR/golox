@@ -84,7 +84,7 @@ func (vm *VM) run() InterpretResult {
 		if debug.TraceExecution {
 			fmt.Printf("          ")
 			for slot := 0; slot < vm.stackTop; slot++ {
-				fmt.Printf("[ %s ]", vm.stack[slot].Stringify())
+				fmt.Printf("[ %s ]", vm.stack[slot])
 			}
 			fmt.Printf("\n")
 			debug.DisassembleInstruction(vm.chunk, vm.ip)
@@ -127,7 +127,7 @@ func (vm *VM) run() InterpretResult {
 			slot := vm.readIndex(instruction)
 			vm.stack[slot] = vm.peek(slot)
 		case opcode.GetGlobal, opcode.GetGlobalLong:
-			name := vm.readConstant(instruction).Stringify()
+			name := vm.readConstant(instruction).String()
 			val, exists := vm.globals[name]
 			_, popResult := vm.pop()
 			if popResult != InterpretNoResult {
@@ -142,14 +142,14 @@ func (vm *VM) run() InterpretResult {
 				return popResult
 			}
 		case opcode.DefineGlobal, opcode.DefineGlobalLong:
-			name := vm.readConstant(instruction).Stringify()
+			name := vm.readConstant(instruction).String()
 			val, popResult := vm.pop()
 			if popResult != InterpretNoResult {
 				return popResult
 			}
 			vm.globals[name] = val
 		case opcode.SetGlobal, opcode.SetGlobalLong:
-			name := vm.readConstant(instruction).Stringify()
+			name := vm.readConstant(instruction).String()
 			_, exists := vm.globals[name]
 			if exists {
 				val, popResult := vm.pop()
@@ -226,7 +226,7 @@ func (vm *VM) run() InterpretResult {
 			if popResult != InterpretNoResult {
 				return popResult
 			}
-			fmt.Printf("%s\n", val.Stringify())
+			fmt.Printf("%s\n", val)
 		case opcode.Jump:
 			offset := vm.readShort()
 			vm.ip += offset

@@ -53,7 +53,7 @@ func DisassembleInstruction(c *chunk.Chunk, offset int) int {
 
 func constantInstruction(name string, c *chunk.Chunk, offset int) int {
 	constantIndex := c.Code[offset+1]
-	fmt.Printf("%-16s %4d '%s'\n", name, constantIndex, c.Constants[constantIndex].Stringify())
+	fmt.Printf("%-16s %4d '%s'\n", name, constantIndex, c.Constants[constantIndex])
 	return offset + 2
 }
 
@@ -61,7 +61,7 @@ func constantLongInstruction(name string, c *chunk.Chunk, offset int) int {
 	constantIndex := uint32(c.Code[offset+1]) << 16
 	constantIndex |= uint32(c.Code[offset+2]) << 8
 	constantIndex |= uint32(c.Code[offset+3])
-	fmt.Printf("%-16s %4d '%s'\n", name, constantIndex, c.Constants[constantIndex].Stringify())
+	fmt.Printf("%-16s %4d '%s'\n", name, constantIndex, c.Constants[constantIndex])
 	return offset + 4
 }
 
