@@ -2,8 +2,8 @@ package debug
 
 import (
 	"fmt"
-	"golox/internal/chunk"
-	"golox/internal/opcode"
+	"github.com/VannRR/golox/internal/chunk"
+	"github.com/VannRR/golox/internal/opcode"
 )
 
 const PrintCode bool = true

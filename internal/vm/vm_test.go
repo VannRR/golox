@@ -1,10 +1,10 @@
 package vm
 
 import (
-	"golox/internal/chunk"
-	"golox/internal/object"
-	"golox/internal/opcode"
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/chunk"
+	"github.com/VannRR/golox/internal/object"
+	"github.com/VannRR/golox/internal/opcode"
+	"github.com/VannRR/golox/internal/value"
 	"testing"
 )
 

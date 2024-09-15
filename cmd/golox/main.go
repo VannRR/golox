@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"golox/internal/vm"
+	"github.com/VannRR/golox/internal/vm"
 	"io"
 	"os"
 )

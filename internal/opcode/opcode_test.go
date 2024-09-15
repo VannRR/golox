@@ -1,7 +1,7 @@
 package opcode_test
 
 import (
-	"golox/internal/opcode"
+	"github.com/VannRR/golox/internal/opcode"
 	"testing"
 )
 

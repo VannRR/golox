@@ -1,8 +1,8 @@
 package chunk
 
 import (
-	"golox/internal/opcode"
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/opcode"
+	"github.com/VannRR/golox/internal/value"
 	"testing"
 )
 

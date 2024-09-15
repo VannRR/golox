@@ -2,12 +2,12 @@ package compiler
 
 import (
 	"fmt"
-	"golox/internal/chunk"
-	"golox/internal/lexer"
-	"golox/internal/object"
-	"golox/internal/opcode"
-	"golox/internal/token"
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/chunk"
+	"github.com/VannRR/golox/internal/lexer"
+	"github.com/VannRR/golox/internal/object"
+	"github.com/VannRR/golox/internal/opcode"
+	"github.com/VannRR/golox/internal/token"
+	"github.com/VannRR/golox/internal/value"
 	"testing"
 )
 

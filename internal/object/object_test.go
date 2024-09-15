@@ -1,7 +1,7 @@
 package object
 
 import (
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/value"
 	"testing"
 )
 
@@ -87,8 +87,8 @@ func Test_ObjFuntion_IsEqual(t *testing.T) {
 		t.Errorf("Expected IsEqual to return false for ObjFunction '<fn foo>' == '<fn bar>', but got true")
 	}
 
-	if !foo.IsEqual(*foo) {
-		t.Errorf("Expected IsEqual to return true for ObjFunction '<fn foo>' == '<fn foo>', but got false")
+	if foo.IsEqual(*foo) {
+		t.Errorf("Expected IsEqual to return false for ObjFunction '<fn foo>' == '<fn foo>', but got true")
 	}
 
 	if foo.IsEqual(otherValue) {

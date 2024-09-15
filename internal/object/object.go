@@ -2,8 +2,8 @@ package object
 
 import (
 	"fmt"
-	"golox/internal/chunk"
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/chunk"
+	"github.com/VannRR/golox/internal/value"
 )
 
 type ObjString string

@@ -2,13 +2,13 @@ package vm
 
 import (
 	"fmt"
-	"golox/internal/chunk"
-	"golox/internal/common"
-	"golox/internal/compiler"
-	"golox/internal/debug"
-	"golox/internal/object"
-	"golox/internal/opcode"
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/chunk"
+	"github.com/VannRR/golox/internal/common"
+	"github.com/VannRR/golox/internal/compiler"
+	"github.com/VannRR/golox/internal/debug"
+	"github.com/VannRR/golox/internal/object"
+	"github.com/VannRR/golox/internal/opcode"
+	"github.com/VannRR/golox/internal/value"
 	"os"
 )
 

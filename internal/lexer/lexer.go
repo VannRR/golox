@@ -3,7 +3,7 @@ package lexer
 import (
 	"bytes"
 	"fmt"
-	"golox/internal/token"
+	"github.com/VannRR/golox/internal/token"
 )
 
 type Lexer struct {

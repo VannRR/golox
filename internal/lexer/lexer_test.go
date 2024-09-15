@@ -2,7 +2,7 @@ package lexer
 
 import (
 	"bytes"
-	"golox/internal/token"
+	"github.com/VannRR/golox/internal/token"
 	"testing"
 )
 

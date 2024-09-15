@@ -2,8 +2,8 @@ package chunk
 
 import (
 	"fmt"
-	"golox/internal/common"
-	"golox/internal/value"
+	"github.com/VannRR/golox/internal/common"
+	"github.com/VannRR/golox/internal/value"
 )
 
 type LineInfo struct {
